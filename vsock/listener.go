@@ -66,7 +66,7 @@ func (l listener) Accept() (net.Conn, error) {
 			return nil, ctx.Err()
 		case <-tickerCh:
 			conn, err := tryAccept(logger, l.listener)
-			if isTemporaryNetErr(err) {
+			if isTimeoutNetErr(err) {
 				err = fmt.Errorf("temporary vsock accept failure: %w", err)
 				logger.WithError(err).Debug()
 

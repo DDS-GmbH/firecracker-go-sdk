@@ -1100,7 +1100,7 @@ func testSetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 }
 
 func testUpdateMetadata(ctx context.Context, t *testing.T, m *Machine) {
-	metadata := map[string]string{"patch_key": "patch_value"}
+	metadata := map[string]string{"patchKey": "patch_value"}
 
 	err := m.UpdateMetadata(ctx, metadata)
 	if err != nil {

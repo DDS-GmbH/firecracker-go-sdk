@@ -129,7 +129,7 @@ func dial(ctx context.Context, udsPath string, port uint32, c config) (net.Conn,
 			return nil, ctx.Err()
 		case <-tickerCh:
 			conn, err := tryConnect(logger, udsPath, port, c)
-			if isTemporaryNetErr(err) {
+			if isTimeoutNetErr(err) {
 				err = fmt.Errorf("temporary vsock dial failure: %w", err)
 				logger.WithError(err).Debug()
 
@@ -278,8 +278,24 @@ func (e ackError) Timeout() bool {
 	return false
 }
 
-// isTemporaryNetErr returns whether the provided error is a retriable error.
-func isTemporaryNetErr(err error) bool {
+type timeoutError struct {
+	cause error
+}
+
+func (e timeoutError) Error() string {
+	return fmt.Errorf("vsock timeout failure: %w", e.cause).Error()
+}
+
+func (e timeoutError) Temporary() bool {
+	return true
+}
+
+func (e timeoutError) Timeout() bool {
+	return true
+}
+
+// isTimeoutNetErr returns whether the provided error is a retriable error.
+func isTimeoutNetErr(err error) bool {
 	var netError net.Error
 	return err != nil && errors.As(err, &netError) && netError.Timeout()
 }
