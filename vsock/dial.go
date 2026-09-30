@@ -258,8 +258,8 @@ func (e connectMsgError) Timeout() bool {
 	return false
 }
 
-type ackMsgError struct {
-	cause error
+func (e connectMsgError) Temporary() bool {
+	return false
 }
 
 type ackTimeoutError struct {
@@ -274,12 +274,24 @@ func (e ackTimeoutError) Timeout() bool {
 	return true
 }
 
+func (e ackTimeoutError) Temporary() bool {
+	return true
+}
+
+type ackMsgError struct {
+	cause error
+}
+
 func (e ackMsgError) Error() string {
 	return fmt.Errorf("vsock ack message failure: %w", e.cause).Error()
 }
 
 func (e ackMsgError) Timeout() bool {
 	return false
+}
+
+func (e ackMsgError) Temporary() bool {
+	return true
 }
 
 type timeoutError struct {
@@ -291,6 +303,10 @@ func (e timeoutError) Error() string {
 }
 
 func (e timeoutError) Timeout() bool {
+	return true
+}
+
+func (e timeoutError) Temporary() bool {
 	return true
 }
 
