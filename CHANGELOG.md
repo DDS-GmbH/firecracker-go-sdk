@@ -1,3 +1,6 @@
+# 1.1.0
+* Update for firecracker 1.17.0
+
 # 1.0.0
 * Added support for MMDS version 2. (#441) 
 * Added support for set drive IO engine type. (#411) 

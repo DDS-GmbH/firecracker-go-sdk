@@ -41,8 +41,6 @@ $(FC_TEST_DATA_PATH)/jailer \
 $(FC_TEST_DATA_PATH)/ltag \
 $(FC_TEST_BIN_PATH)/ptp \
 $(FC_TEST_DATA_PATH)/root-drive.img \
-$(FC_TEST_DATA_PATH)/root-drive-with-ssh.img \
-$(FC_TEST_DATA_PATH)/root-drive-ssh-key \
 $(FC_TEST_BIN_PATH)/static \
 $(FC_TEST_BIN_PATH)/tc-redirect-tap \
 $(FC_TEST_DATA_PATH)/vmlinux 
@@ -53,16 +51,9 @@ testdata_dir = testdata/firecracker.tgz testdata/firecracker_spec-$(firecracker_
 curl = curl --location
 
 GO_VERSION = $(shell go version | cut -c 14- | cut -d' ' -f1 | cut -d'.' -f1,2)
-ifeq ($(GO_VERSION), $(filter $(GO_VERSION),1.14 1.15))
-    define install_go
-		cd .hack; GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) go get $(1)@$(2) 
-		cd .hack; GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) go install $(1)
-    endef
-else
-    define install_go
-		GOBIN=$(abspath $(FC_TEST_BIN_PATH)) go install $(1)@$(2)
-    endef
-endif
+define install_go
+	GOBIN=$(abspath $(FC_TEST_BIN_PATH)) go install $(1)@$(2)
+endef
 
 all: build
 
@@ -101,13 +92,9 @@ $(FC_TEST_DATA_PATH)/fc.stamp:
 	rm -rf $(FC_TEST_DATA_PATH)/release-$(firecracker_version)-$(arch)
 	touch $@
 
-$(FC_TEST_DATA_PATH)/root-drive.img:
-	$(curl) -o $@ https://s3.amazonaws.com/spec.ccfc.min/img/hello/fsfiles/hello-rootfs.ext4
-
 # Download pre-built rootfs image and its ssh key from S3
-$(FC_TEST_DATA_PATH)/root-drive-ssh-key $(FC_TEST_DATA_PATH)/root-drive-with-ssh.img: 
-	$(curl) -o $(FC_TEST_DATA_PATH)/root-drive-with-ssh.img https://s3.amazonaws.com/spec.ccfc.min/firecracker-ci/20260916-dcfc69b625d0-0/$(arch)/ubuntu-24.04.squashfs
-	$(curl) -o $(FC_TEST_DATA_PATH)/root-drive-ssh-key https://s3.amazonaws.com/spec.ccfc.min/firecracker-ci/20260916-dcfc69b625d0-0/$(arch)/ubuntu-24.04.squashfs
+$(FC_TEST_DATA_PATH)/root-drive.img: 
+	$(curl) -o $(FC_TEST_DATA_PATH)/root-drive.img https://s3.amazonaws.com/spec.ccfc.min/firecracker-ci/20260916-dcfc69b625d0-0/$(arch)/ubuntu-24.04.squashfs
 
 $(FC_TEST_BIN_PATH)/ptp:
 	$(call install_go,github.com/containernetworking/plugins/plugins/main/ptp,v1.9.1)
