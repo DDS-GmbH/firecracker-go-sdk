@@ -441,7 +441,7 @@ func (f *Client) PatchGuestDriveByID(ctx context.Context, driveID, pathOnHost st
 // PutBalloon API in setting any additional optional fields.
 type PutBalloonOpt func(*ops.PutBalloonParams)
 
-// PutBalloonOpt is a wrapper for the swagger generated client to make
+// PutBalloon is a wrapper for the swagger generated client to make
 // calling of the API easier.
 func (f *Client) PutBalloon(ctx context.Context, balloon *models.Balloon, opts ...PutBalloonOpt) (*ops.PutBalloonNoContent, error) {
 	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
@@ -526,4 +526,63 @@ func (f *Client) GetExportVMConfig(opts ...GetExportVMConfigOpt) (*ops.GetExport
 	}
 
 	return f.client.Operations.GetExportVMConfig(p)
+}
+
+// ConfigureMemoryHotplugOpt is a functional option to be used for the
+// PutMemoryHotplugConfig API in setting any additional optional fields.
+type ConfigureMemoryHotplugOpt func(*ops.PutMemoryHotplugParams)
+
+// PutMemoryHotplug is a wrapper for the swagger generated client to make
+// calling of the API easier.
+func (f *Client) ConfigureMemoryHotplugging(ctx context.Context, memoryHotplugConfig *models.MemoryHotplugConfig, opts ...ConfigureMemoryHotplugOpt) (*ops.PutMemoryHotplugNoContent, error) {
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
+	defer cancel()
+
+	params := ops.NewPutMemoryHotplugParams()
+	params.SetBody(memoryHotplugConfig)
+
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	return f.client.Operations.PutMemoryHotplugContext(timeout, params)
+}
+
+// UpdateMemoryHotpluggingOpt is a functional option to be used for the
+// UpdateMemoryHotplugging API in setting any additional optional fields.
+type UpdateMemoryHotpluggingOpt func(*ops.PatchMemoryHotplugParams)
+
+// UpdateMemoryHotplugging is a wrapper for the swagger generated client to make
+// calling of the API easier.
+func (f *Client) UpdateMemoryHotplugging(ctx context.Context, memoryHotplugConfig *models.MemoryHotplugSizeUpdate, opts ...UpdateMemoryHotpluggingOpt) (*ops.PatchMemoryHotplugNoContent, error) {
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
+	defer cancel()
+
+	params := ops.NewPatchMemoryHotplugParams()
+	params.SetBody(memoryHotplugConfig)
+
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	return f.client.Operations.PatchMemoryHotplugContext(timeout, params)
+}
+
+// GetMemoryHotpluggingStatusOpt is a functional option to be used for the
+// GetMemoryHotpluggingStatus API in setting any additional optional fields.
+type GetMemoryHotpluggingStatusOpt func(*ops.GetMemoryHotplugParams)
+
+// GetMemoryHotpluggingStatus is a wrapper for the swagger generated client to make
+// calling of the API easier.
+func (f *Client) GetMemoryHotpluggingStatus(ctx context.Context, opts ...GetMemoryHotpluggingStatusOpt) (*ops.GetMemoryHotplugOK, error) {
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
+	defer cancel()
+
+	params := ops.NewGetMemoryHotplugParams()
+
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	return f.client.Operations.GetMemoryHotplugContext(timeout, params)
 }
