@@ -142,6 +142,7 @@ func TestDrivesBuilderAddDrive(t *testing.T) {
 	}
 
 	b := NewDrivesBuilder(rootPath)
+
 	for _, drive := range drivesToAdd {
 		if drive.Opt != nil {
 			b = b.AddDrive(drive.Path, drive.ReadOnly, drive.Opt)

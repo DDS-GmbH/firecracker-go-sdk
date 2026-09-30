@@ -35,9 +35,11 @@ func SupportCPUTemplate() (bool, error) {
 	}
 
 	var err error
+
 	isIntelOnce.Do(func() {
 		isIntel, err = checkIsIntel()
 	})
+
 	return isIntel, err
 }
 
@@ -62,10 +64,12 @@ func findFirstVendorID(r io.Reader) (string, error) {
 	s := bufio.NewScanner(r)
 	for s.Scan() {
 		line := s.Text()
+
 		matches := vendorID.FindStringSubmatch(line)
 		if len(matches) == 2 {
 			return matches[1], nil
 		}
 	}
+
 	return "", nil
 }

@@ -15,7 +15,7 @@ package firecracker
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 )
 
@@ -86,31 +86,31 @@ var JailerConfigValidationHandler = Handler{
 		}
 
 		if !hasRoot {
-			return fmt.Errorf("A root drive must be present in the drive list")
+			return errors.New("A root drive must be present in the drive list")
 		}
 
 		if m.Cfg.JailerCfg.ChrootStrategy == nil {
-			return fmt.Errorf("ChrootStrategy cannot be nil")
+			return errors.New("ChrootStrategy cannot be nil")
 		}
 
 		if len(m.Cfg.JailerCfg.ExecFile) == 0 {
-			return fmt.Errorf("exec file must be specified when using jailer mode")
+			return errors.New("exec file must be specified when using jailer mode")
 		}
 
 		if len(m.Cfg.JailerCfg.ID) == 0 {
-			return fmt.Errorf("id must be specified when using jailer mode")
+			return errors.New("id must be specified when using jailer mode")
 		}
 
 		if m.Cfg.JailerCfg.GID == nil {
-			return fmt.Errorf("GID must be specified when using jailer mode")
+			return errors.New("GID must be specified when using jailer mode")
 		}
 
 		if m.Cfg.JailerCfg.UID == nil {
-			return fmt.Errorf("UID must be specified when using jailer mode")
+			return errors.New("UID must be specified when using jailer mode")
 		}
 
 		if m.Cfg.JailerCfg.NumaNode == nil {
-			return fmt.Errorf("ID must be specified when using jailer mode")
+			return errors.New("ID must be specified when using jailer mode")
 		}
 
 		return nil
@@ -144,6 +144,7 @@ func createFifoOrFile(ctx context.Context, m *Machine, fifo, path string) error 
 				if err := os.Remove(fifo); !os.IsNotExist(err) {
 					return err
 				}
+
 				return nil
 			},
 		)
@@ -152,8 +153,10 @@ func createFifoOrFile(ctx context.Context, m *Machine, fifo, path string) error 
 		if err != nil {
 			return err
 		}
+
 		file.Close()
 	}
+
 	return nil
 }
 
@@ -189,10 +192,13 @@ var BootstrapLoggingHandler = Handler{
 		if err := m.setupLogging(ctx); err != nil {
 			return err
 		}
+
 		if err := m.setupMetrics(ctx); err != nil {
 			return err
 		}
+
 		m.logger.Debugf("setup logging: success")
+
 		return nil
 	},
 }
@@ -388,6 +394,7 @@ func (l HandlerList) Append(handlers ...Handler) HandlerList {
 // AppendAfter will append a given handler after the specified handler.
 func (l HandlerList) AppendAfter(name string, handler Handler) HandlerList {
 	newList := HandlerList{}
+
 	for _, h := range l.list {
 		if h.Name == name {
 			newList = newList.Append(h, handler)
@@ -420,6 +427,7 @@ func (l HandlerList) Has(name string) bool {
 // Swap will replace all elements of the given name with the new handler.
 func (l HandlerList) Swap(handler Handler) HandlerList {
 	newList := HandlerList{}
+
 	for _, h := range l.list {
 		if h.Name == handler.Name {
 			newList.list = append(newList.list, handler)
@@ -446,6 +454,7 @@ func (l HandlerList) Swappend(handler Handler) HandlerList {
 // named handler being removed.
 func (l HandlerList) Remove(name string) HandlerList {
 	newList := HandlerList{}
+
 	for _, h := range l.list {
 		if h.Name != name {
 			newList.list = append(newList.list, h)
@@ -466,6 +475,7 @@ func (l HandlerList) Clear() HandlerList {
 func (l HandlerList) Run(ctx context.Context, m *Machine) error {
 	for _, handler := range l.list {
 		m.logger.Debugf("Running handler %s", handler.Name)
+
 		if err := handler.Fn(ctx, m); err != nil {
 			m.logger.Warnf("Failed handler %q: %v", handler.Name, err)
 			return err

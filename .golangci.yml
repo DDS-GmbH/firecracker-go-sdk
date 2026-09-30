@@ -1,0 +1,48 @@
+version: "2"
+
+# commented out linters for style fixes at later point
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - canonicalheader
+    # - cyclop
+    # - dogsled
+    # - dupl
+    # - dupword
+    - err113
+    - exhaustive
+    - forbidigo
+    # - funlen
+    # - goconst
+    - gocritic
+    - govet
+    # - gosec
+    # - ireturn
+    # - mnd
+    - musttag
+    # - nestif
+    # - nlreturn
+    - paralleltest
+    - perfsprint
+    - prealloc
+    - promlinter
+    # - revive
+    - tagliatelle
+    - testifylint
+    # - testpackage
+    - usetesting
+    - unparam
+    - whitespace
+    - wsl_v5
+  disable:
+    - exhaustruct
+    - gomodguard
+    - wsl
+    - noinlineerr
+  settings:
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2

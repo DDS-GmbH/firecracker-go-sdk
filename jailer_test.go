@@ -14,7 +14,6 @@ package firecracker
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -51,7 +50,7 @@ func TestJailerBuilder(t *testing.T) {
 				"--cgroup",
 				"cpuset.mems=0",
 				"--cgroup",
-				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
+				"cpuset.cpus=" + getNumaCpuset(0),
 			},
 			expectedSockPath: filepath.Join(
 				defaultJailerPath,
@@ -85,7 +84,7 @@ func TestJailerBuilder(t *testing.T) {
 				"--cgroup",
 				"cpuset.mems=0",
 				"--cgroup",
-				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
+				"cpuset.cpus=" + getNumaCpuset(0),
 			},
 			expectedSockPath: filepath.Join(
 				defaultJailerPath,
@@ -124,7 +123,7 @@ func TestJailerBuilder(t *testing.T) {
 				"--cgroup",
 				"cpuset.mems=0",
 				"--cgroup",
-				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
+				"cpuset.cpus=" + getNumaCpuset(0),
 				"--cgroup",
 				"cpu.shares=10",
 				"--cgroup-version",
@@ -213,7 +212,7 @@ func TestJail(t *testing.T) {
 				"--cgroup",
 				"cpuset.mems=0",
 				"--cgroup",
-				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
+				"cpuset.cpus=" + getNumaCpuset(0),
 				"--",
 				"--no-seccomp",
 				"--api-sock",
@@ -251,7 +250,7 @@ func TestJail(t *testing.T) {
 				"--cgroup",
 				"cpuset.mems=0",
 				"--cgroup",
-				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
+				"cpuset.cpus=" + getNumaCpuset(0),
 				"--",
 				"--no-seccomp",
 				"--api-sock",
@@ -293,7 +292,7 @@ func TestJail(t *testing.T) {
 				"--cgroup",
 				"cpuset.mems=0",
 				"--cgroup",
-				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
+				"cpuset.cpus=" + getNumaCpuset(0),
 				"--cgroup-version",
 				"2",
 				"--parent-cgroup",
@@ -339,7 +338,7 @@ func TestJail(t *testing.T) {
 				"--cgroup",
 				"cpuset.mems=0",
 				"--cgroup",
-				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
+				"cpuset.cpus=" + getNumaCpuset(0),
 				"--",
 				"--no-seccomp",
 				"--api-sock",
@@ -377,6 +376,7 @@ func TestJail(t *testing.T) {
 			}
 
 			foundJailerHandler := false
+
 			for _, handler := range m.Handlers.FcInit.list {
 				if handler.Name == LinkFilesToRootFSHandlerName {
 					foundJailerHandler = true

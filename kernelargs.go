@@ -27,19 +27,23 @@ type kernelArgs map[string]*string
 // to the kernel
 func (kargs kernelArgs) String() string {
 	var fields []string
+
 	for key, value := range kargs {
 		field := key
 		if value != nil {
 			field += "=" + *value
 		}
+
 		fields = append(fields, field)
 	}
+
 	return strings.Join(fields, " ")
 }
 
 // deserialize the provided string to a kernelArgs map
 func parseKernelArgs(rawString string) kernelArgs {
 	argMap := make(map[string]*string)
+
 	for _, kv := range strings.Fields(rawString) {
 		// only split into up to 2 fields (before and after the first "=")
 		kvSplit := strings.SplitN(kv, "=", 2)

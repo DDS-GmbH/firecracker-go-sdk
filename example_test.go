@@ -38,6 +38,7 @@ func ExampleWithProcessRunner_logging() {
 
 	// stdout will be directed to this file
 	stdoutPath := "/tmp/stdout.log"
+
 	stdout, err := os.OpenFile(stdoutPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(fmt.Errorf("failed to create stdout file: %v", err))
@@ -45,6 +46,7 @@ func ExampleWithProcessRunner_logging() {
 
 	// stderr will be directed to this file
 	stderrPath := "/tmp/stderr.log"
+
 	stderr, err := os.OpenFile(stderrPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(fmt.Errorf("failed to create stderr file: %v", err))
@@ -100,6 +102,7 @@ func ExampleDrivesBuilder() {
 	}
 
 	const socketPath = "/tmp/firecracker.sock"
+
 	cfg := firecracker.Config{
 		SocketPath:      socketPath,
 		KernelImagePath: "/path/to/kernel",
@@ -111,6 +114,7 @@ func ExampleDrivesBuilder() {
 	}
 
 	ctx := context.Background()
+
 	m, err := firecracker.NewMachine(ctx, cfg)
 	if err != nil {
 		panic(fmt.Errorf("failed to create new machine: %v", err))
@@ -142,6 +146,7 @@ func ExampleDrivesBuilder_driveOpt() {
 		Build()
 
 	const socketPath = "/tmp/firecracker.sock"
+
 	cfg := firecracker.Config{
 		SocketPath:      socketPath,
 		KernelImagePath: "/path/to/kernel",
@@ -153,6 +158,7 @@ func ExampleDrivesBuilder_driveOpt() {
 	}
 
 	ctx := context.Background()
+
 	m, err := firecracker.NewMachine(ctx, cfg)
 	if err != nil {
 		panic(fmt.Errorf("failed to create new machine: %v", err))
@@ -211,6 +217,7 @@ func ExampleNetworkInterface_rateLimiting() {
 	}
 
 	ctx := context.Background()
+
 	m, err := firecracker.NewMachine(ctx, cfg)
 	if err != nil {
 		panic(fmt.Errorf("failed to create new machine: %v", err))
@@ -230,12 +237,15 @@ func ExampleNetworkInterface_rateLimiting() {
 
 func ExampleJailerConfig_enablingJailer() {
 	ctx := context.Background()
+
 	vmmCtx, vmmCancel := context.WithCancel(ctx)
 	defer vmmCancel()
 
-	const id = "my-jailer-test"
-	const path = "/path/to/jailer-workspace"
-	const kernelImagePath = "/path/to/kernel-image"
+	const (
+		id              = "my-jailer-test"
+		path            = "/path/to/jailer-workspace"
+		kernelImagePath = "/path/to/kernel-image"
+	)
 
 	uid := 123
 	gid := 100
@@ -267,20 +277,24 @@ func ExampleJailerConfig_enablingJailer() {
 	if err != nil {
 		panic(fmt.Errorf("Failed to open kernel image: %v", err))
 	}
+
 	f.Close()
 
 	// Check each drive is readable and writable
 	for _, drive := range fcCfg.Drives {
 		path := drive.PathOnHost
 		drivePath := firecracker.StringValue(&path)
+
 		f, err := os.OpenFile(drivePath, os.O_RDWR, 0666)
 		if err != nil {
 			panic(fmt.Errorf("Failed to open drive with read/write permissions: %v", err))
 		}
+
 		f.Close()
 	}
 
 	logger := log.New()
+
 	m, err := firecracker.NewMachine(vmmCtx, fcCfg, firecracker.WithLogger(log.NewEntry(logger)))
 	if err != nil {
 		panic(err)

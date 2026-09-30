@@ -115,12 +115,14 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 	// Make sure the netns is setup. If the path doesn't yet exist, it will be
 	// initialized with a new empty netns.
 	err, netnsCleanupFuncs := cniNetworkInterface.CNIConfiguration.initializeNetNS()
+
 	cleanupFuncs = append(cleanupFuncs, netnsCleanupFuncs...)
 	if err != nil {
 		return fmt.Errorf("failed to initialize netns: %w", err), cleanupFuncs
 	}
 
 	cniResult, err, cniCleanupFuncs := cniNetworkInterface.CNIConfiguration.invokeCNI(ctx, logger)
+
 	cleanupFuncs = append(cleanupFuncs, cniCleanupFuncs...)
 	if err != nil {
 		return fmt.Errorf("failure when invoking CNI: %w", err), cleanupFuncs
@@ -341,6 +343,7 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 		if err != nil {
 			return fmt.Errorf("failed to delete CNI network list %q: %w", cniConf.NetworkName, err)
 		}
+
 		return nil
 	}
 
@@ -360,6 +363,7 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 			// try to create a new network on top of a possibly half-deleted previous one.
 			return nil, fmt.Errorf(errMsg+": %w", err), cleanupFuncs
 		}
+
 		logger.Error(err, errMsg)
 	}
 
@@ -367,6 +371,7 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 	// case where AddNetworkList fails but leaves intermediate resources around like
 	// devices and ip allocations.
 	cleanupFuncs = append(cleanupFuncs, delNetworkFunc)
+
 	cniResult, err := cniPlugin.AddNetworkList(ctx, networkConf, runtimeConf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create CNI network: %w", err), cleanupFuncs
@@ -399,6 +404,7 @@ func (cniConf CNIConfiguration) initializeNetNS() (error, []func() error) {
 
 	// make sure the parent directory for the path exists
 	parentDir := filepath.Dir(cniConf.netNSPath)
+
 	_, err = os.Stat(parentDir)
 	if os.IsNotExist(err) {
 		err = os.MkdirAll(parentDir, 0600)
@@ -414,6 +420,7 @@ func (cniConf CNIConfiguration) initializeNetNS() (error, []func() error) {
 			if err != nil {
 				return fmt.Errorf("failed to remove netns parent dir %q: %w", parentDir, err)
 			}
+
 			return nil
 		})
 	} else if err != nil {
@@ -425,6 +432,7 @@ func (cniConf CNIConfiguration) initializeNetNS() (error, []func() error) {
 	if err != nil {
 		return fmt.Errorf("failed to open new netns path at %q: %w", cniConf.netNSPath, err), cleanupFuncs
 	}
+
 	fd.Close()
 
 	cleanupFuncs = append(cleanupFuncs, func() error {
@@ -432,6 +440,7 @@ func (cniConf CNIConfiguration) initializeNetNS() (error, []func() error) {
 		if err != nil {
 			return fmt.Errorf("failed to remove netns path %q: %w", cniConf.netNSPath, err)
 		}
+
 		return nil
 	})
 
@@ -464,11 +473,13 @@ func (cniConf CNIConfiguration) initializeNetNS() (error, []func() error) {
 			if err != nil {
 				return fmt.Errorf("failed to unmount netns at %q: %w", cniConf.netNSPath, err)
 			}
+
 			return nil
 		})
 	}()
 
 	err = <-doneCh
+
 	return err, cleanupFuncs
 }
 

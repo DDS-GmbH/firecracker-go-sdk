@@ -23,6 +23,7 @@ import (
 // sandbox.
 func InterfaceIPs(result *current.Result, ifaceName string, sandbox string) []*current.IPConfig {
 	var ifaceIPs []*current.IPConfig
+
 	for _, ipconfig := range result.IPs {
 		if ipconfig.Interface != nil {
 			iface := result.Interfaces[*ipconfig.Interface]
@@ -55,6 +56,7 @@ func FilterBySandbox(
 // IfacesWithName scans the provided list of ifaces and returns the ones with the provided name
 func IfacesWithName(name string, ifaces ...*current.Interface) []*current.Interface {
 	var foundIfaces []*current.Interface
+
 	for _, iface := range ifaces {
 		if iface.Name == name {
 			foundIfaces = append(foundIfaces, iface)
@@ -80,7 +82,7 @@ func VMTapPair(
 		return nil, nil, fmt.Errorf("expected to find at most 1 interface in sandbox %q, but instead found %d",
 			vmID, len(vmIfaces))
 	} else if len(vmIfaces) == 0 {
-		return nil, nil, LinkNotFoundError{device: fmt.Sprintf("pseudo-device for %s", vmID)}
+		return nil, nil, LinkNotFoundError{device: "pseudo-device for " + vmID}
 	}
 
 	vmIface = vmIfaces[0]

@@ -32,6 +32,7 @@ func TestNewUnixSocketTransport(t *testing.T) {
 	done := make(chan bool)
 
 	socketPath := "testingUnixSocket.sock"
+
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
 		panic(err)

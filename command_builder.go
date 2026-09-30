@@ -138,6 +138,7 @@ func (b VMCommandBuilder) Build(ctx context.Context) *exec.Cmd {
 	if socketPath := b.SocketPath(); socketPath != nil {
 		args = append(args, socketPath...)
 	}
+
 	if v := b.Args(); v != nil {
 		args = append(args, v...)
 	}
@@ -151,9 +152,11 @@ func (b VMCommandBuilder) Build(ctx context.Context) *exec.Cmd {
 	if stdout := b.Stdout(); stdout != nil {
 		cmd.Stdout = stdout
 	}
+
 	if stderr := b.Stderr(); stderr != nil {
 		cmd.Stderr = stderr
 	}
+
 	if stdin := b.Stdin(); stdin != nil {
 		cmd.Stdin = stdin
 	}

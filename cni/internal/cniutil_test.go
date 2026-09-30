@@ -78,7 +78,7 @@ func TestInterfaceIPs(t *testing.T) {
 	}
 
 	actualVMIPs := InterfaceIPs(result, vmIfaceName, netnsID)
-	assert.Len(t, actualVMIPs, 0,
+	assert.Empty(t, actualVMIPs,
 		"unexpected number of vm IPs in netns sandbox")
 
 	actualVMIPs = InterfaceIPs(result, vmIfaceName, vmID)
@@ -96,7 +96,7 @@ func TestInterfaceIPs(t *testing.T) {
 		"unexpected veth IP in netns sandbox")
 
 	actualVethIPs = InterfaceIPs(result, vethName, vmID)
-	assert.Len(t, actualVethIPs, 0,
+	assert.Empty(t, actualVethIPs,
 		"unexpected number of veth IPs in vmID sandbox")
 }
 

@@ -118,6 +118,7 @@ func dial(ctx context.Context, udsPath string, port uint32, c config) (net.Conn,
 	logger := c.logger
 
 	tickerCh := ticker.C
+
 	var attemptCount int
 	for {
 		attemptCount++
@@ -131,10 +132,12 @@ func dial(ctx context.Context, udsPath string, port uint32, c config) (net.Conn,
 			if isTemporaryNetErr(err) {
 				err = fmt.Errorf("temporary vsock dial failure: %w", err)
 				logger.WithError(err).Debug()
+
 				continue
 			} else if err != nil {
 				err = fmt.Errorf("non-temporary vsock dial failure: %w", err)
 				logger.WithError(err).Error()
+
 				return nil, err
 			}
 
@@ -170,6 +173,7 @@ func tryConnect(logger *logrus.Entry, udsPath string, port uint32, c config) (ne
 	}()
 
 	msg := connectMsg(port)
+
 	err = tryConnWrite(conn, msg, c.ConnectMsgTimeout)
 	if err != nil {
 		return nil, connectMsgError{
@@ -191,6 +195,7 @@ func tryConnect(logger *logrus.Entry, udsPath string, port uint32, c config) (ne
 			cause: fmt.Errorf(`expected to read "OK <port>", but instead read %q`, line),
 		}
 	}
+
 	return conn, nil
 }
 
@@ -219,6 +224,7 @@ func tryConnWrite(conn net.Conn, expectedWrite string, timeout time.Duration) er
 	if err != nil {
 		return err
 	}
+
 	if bytesWritten != len(expectedWrite) {
 		return fmt.Errorf("incomplete write, expected %d bytes but wrote %d",
 			len(expectedWrite), bytesWritten)

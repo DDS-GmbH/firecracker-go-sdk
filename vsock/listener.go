@@ -51,9 +51,12 @@ func (l listener) Accept() (net.Conn, error) {
 	defer cancel()
 
 	var attemptCount int
+
 	ticker := time.NewTicker(l.config.RetryInterval)
 	defer ticker.Stop()
+
 	tickerCh := ticker.C
+
 	for {
 		attemptCount++
 		logger := l.config.logger.WithField("attempt", attemptCount)
@@ -66,10 +69,12 @@ func (l listener) Accept() (net.Conn, error) {
 			if isTemporaryNetErr(err) {
 				err = fmt.Errorf("temporary vsock accept failure: %w", err)
 				logger.WithError(err).Debug()
+
 				continue
 			} else if err != nil {
 				err = fmt.Errorf("non-temporary vsock accept failure: %w", err)
 				logger.WithError(err).Error()
+
 				return nil, err
 			}
 

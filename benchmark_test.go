@@ -33,6 +33,7 @@ func createMachine(ctx context.Context, name string, forwardSignals []os.Signal)
 	if err != nil {
 		return nil, nil, err
 	}
+
 	cleanup := func() {
 		os.RemoveAll(dir)
 	}
@@ -71,6 +72,7 @@ func createMachine(ctx context.Context, name string, forwardSignals []os.Signal)
 
 	log := logrus.New()
 	log.SetLevel(logrus.FatalLevel)
+
 	machine, err := NewMachine(ctx, config, WithProcessRunner(cmd), WithLogger(logrus.NewEntry(log)))
 	if err != nil {
 		return nil, cleanup, err
@@ -97,6 +99,7 @@ func startAndWaitVM(ctx context.Context, m *Machine) error {
 			break
 		}
 	}
+
 	err = m.StopVMM()
 	if err != nil {
 		return err
@@ -134,15 +137,18 @@ func benchmarkForwardSignals(b *testing.B, forwardSignals []os.Signal) {
 					err = fmt.Errorf("failed to start the VM: %v", err)
 					return // anonymous defer func() will deliver the error
 				}
+
 				return // anonymous defer func() will deliver this nil error
 			}()
 		}
+
 		for k := 0; k < numberOfVMs; k++ {
 			err := <-errCh
 			if err != nil {
 				b.Fatal(err)
 			}
 		}
+
 		close(errCh)
 	}
 }

@@ -29,6 +29,7 @@ func TestClient(t *testing.T) {
 	}
 
 	ctx := context.Background()
+
 	socketpath, cleanup := makeSocketPath(t)
 	defer cleanup()
 
@@ -55,8 +56,10 @@ func TestClient(t *testing.T) {
 	}
 
 	client := NewClient(socketpath, fctesting.NewLogEntry(t), true)
+
 	deadlineCtx, deadlineCancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer deadlineCancel()
+
 	if err := waitForAliveVMM(deadlineCtx, client); err != nil {
 		t.Fatal(err)
 	}
@@ -72,6 +75,7 @@ func TestGetFirecrackerVersion(t *testing.T) {
 	}
 
 	ctx := context.Background()
+
 	socketpath, cleanup := makeSocketPath(t)
 	defer cleanup()
 
@@ -91,8 +95,10 @@ func TestGetFirecrackerVersion(t *testing.T) {
 	}()
 
 	client := NewClient(socketpath, fctesting.NewLogEntry(t), true)
+
 	deadlineCtx, deadlineCancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer deadlineCancel()
+
 	if err := waitForAliveVMM(deadlineCtx, client); err != nil {
 		t.Fatal(err)
 	}

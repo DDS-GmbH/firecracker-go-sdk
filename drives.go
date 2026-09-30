@@ -68,6 +68,7 @@ func (b DrivesBuilder) AddDrive(path string, readOnly bool, opts ...DriveOpt) Dr
 	}
 
 	b.drives = append(b.drives, drive)
+
 	return b
 }
 

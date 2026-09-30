@@ -147,7 +147,6 @@ func (ops defaultNetlinkOps) AddRedirectFilter(sourceLink netlink.Link, targetLi
 	if err != nil {
 		err = fmt.Errorf("failed to add u32 filter redirecting from device %q to device %q, does %q exist and have a qdisc attached to its ingress?: %w",
 			sourceLink.Attrs().Name, targetLink.Attrs().Name, sourceLink.Attrs().Name, err)
-
 	}
 
 	return err
@@ -178,6 +177,7 @@ func (defaultNetlinkOps) GetLink(name string) (netlink.Link, error) {
 	if _, ok := err.(netlink.LinkNotFoundError); ok {
 		return nil, &LinkNotFoundError{device: name}
 	}
+
 	return link, err
 }
 
@@ -191,6 +191,7 @@ func (ops defaultNetlinkOps) RemoveLink(name string) error {
 	if _, ok := err.(netlink.LinkNotFoundError); ok {
 		return &LinkNotFoundError{device: link.Attrs().Name}
 	}
+
 	return err
 }
 
@@ -221,14 +222,12 @@ func (defaultNetlinkOps) CreateTap(name string, mtu int, ownerUID, ownerGID int)
 		if err != nil {
 			return nil, fmt.Errorf("failed to set tap %s owner to uid %d: %w",
 				name, ownerUID, err)
-
 		}
 
 		err = unix.IoctlSetInt(int(tapFd.Fd()), unix.TUNSETGROUP, ownerGID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to set tap %s group to gid %d: %w",
 				name, ownerGID, err)
-
 		}
 	}
 

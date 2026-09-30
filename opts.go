@@ -80,7 +80,9 @@ func modifyHandlersForLoadSnapshot(l HandlerList) HandlerList {
 	for _, h := range loadSnapshotRemoveHandlerList {
 		l = l.Remove(h.Name)
 	}
+
 	l = l.Append(LoadSnapshotHandler)
+
 	return l
 }
 

@@ -25,6 +25,7 @@ func TestLoggingPanic(t *testing.T) {
 	}()
 
 	os.Setenv("FC_TEST_LOG_LEVEL", "debug")
+
 	l := NewLogEntry(t)
 	l.Debug("TestLoggingPanic")
 }

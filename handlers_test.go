@@ -14,6 +14,7 @@ package firecracker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -139,6 +140,7 @@ func TestHandlerListClear(t *testing.T) {
 	)
 
 	h.Clear()
+
 	if e, a := 7, h.Len(); e != a {
 		t.Errorf("expected '%d', but received '%d'", e, a)
 	}
@@ -151,7 +153,7 @@ func TestHandlerListClear(t *testing.T) {
 
 func TestHandlerListRun(t *testing.T) {
 	count := 0
-	bazErr := fmt.Errorf("baz error")
+	bazErr := errors.New("baz error")
 
 	h := HandlerList{}
 	h = h.Append(
@@ -185,10 +187,11 @@ func TestHandlerListRun(t *testing.T) {
 	)
 
 	ctx := context.Background()
+
 	m := &Machine{
 		logger: fctesting.NewLogEntry(t),
 	}
-	if err := h.Run(ctx, m); err != bazErr {
+	if err := h.Run(ctx, m); !errors.Is(err, bazErr) {
 		t.Errorf("expected an error, but received %v", err)
 	}
 
@@ -630,9 +633,11 @@ func TestHandlers(t *testing.T) {
 			Client: fctesting.MockClient{
 				PutMmdsFn: func(params *ops.PutMmdsParams, opts ...ops.ClientOption) (*ops.PutMmdsNoContent, error) {
 					called = SetMetadataHandlerName
+
 					if !reflect.DeepEqual(metadata, params.Body) {
 						return nil, fmt.Errorf("incorrect metadata value: %v", params.Body)
 					}
+
 					return &ops.PutMmdsNoContent{}, nil
 				},
 			},
@@ -643,9 +648,11 @@ func TestHandlers(t *testing.T) {
 			Client: fctesting.MockClient{
 				PutMmdsConfigFn: func(params *ops.PutMmdsConfigParams, opts ...ops.ClientOption) (*ops.PutMmdsConfigNoContent, error) {
 					called = ConfigMmdsHandlerName
+
 					if !reflect.DeepEqual(mmdsConfig, params.Body) {
 						return nil, fmt.Errorf("incorrect mmds config value: %v", params.Body)
 					}
+
 					return &ops.PutMmdsConfigNoContent{}, nil
 				},
 			},
@@ -680,6 +687,7 @@ func TestHandlers(t *testing.T) {
 			called = ""
 
 			client := NewClient(socketpath, fctesting.NewLogEntry(t), true, WithOpsClient(&c.Client))
+
 			m, err := NewMachine(ctx, c.Config, WithClient(client), WithLogger(fctesting.NewLogEntry(t)))
 			if err != nil {
 				t.Fatalf("failed to create machine: %v", err)
@@ -714,6 +722,7 @@ func compareHandlerLists(l1, l2 HandlerList) bool {
 		}
 
 		v1 := reflect.ValueOf(e1.Fn)
+
 		v2 := reflect.ValueOf(e2.Fn)
 		if v1.Pointer() != v2.Pointer() {
 			return false

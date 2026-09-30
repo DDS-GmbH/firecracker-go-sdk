@@ -84,6 +84,7 @@ type GetFirecrackerVersionOpt func(*ops.GetFirecrackerVersionParams)
 func (f *Client) GetFirecrackerVersion(ctx context.Context, opts ...GetFirecrackerVersionOpt) (*ops.GetFirecrackerVersionOK, error) {
 	params := ops.NewGetFirecrackerVersionParams()
 	params.SetContext(ctx)
+
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -103,6 +104,7 @@ func (f *Client) PutLogger(ctx context.Context, logger *models.Logger, opts ...P
 
 	loggerParams := ops.NewPutLoggerParamsWithContext(timeout)
 	loggerParams.SetBody(logger)
+
 	for _, opt := range opts {
 		opt(loggerParams)
 	}
@@ -122,6 +124,7 @@ func (f *Client) PutMetrics(ctx context.Context, metrics *models.Metrics, opts .
 
 	params := ops.NewPutMetricsParamsWithContext(timeout)
 	params.SetBody(metrics)
+
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -141,6 +144,7 @@ func (f *Client) PutMachineConfiguration(ctx context.Context, cfg *models.Machin
 
 	mc := ops.NewPutMachineConfigurationParamsWithContext(timeout)
 	mc.SetBody(cfg)
+
 	for _, opt := range opts {
 		opt(mc)
 	}
@@ -160,6 +164,7 @@ func (f *Client) PutGuestBootSource(ctx context.Context, source *models.BootSour
 
 	bootSource := ops.NewPutGuestBootSourceParamsWithContext(timeout)
 	bootSource.SetBody(source)
+
 	for _, opt := range opts {
 		opt(bootSource)
 	}
@@ -180,6 +185,7 @@ func (f *Client) PutGuestNetworkInterfaceByID(ctx context.Context, ifaceID strin
 	cfg := ops.NewPutGuestNetworkInterfaceByIDParamsWithContext(timeout)
 	cfg.SetBody(ifaceCfg)
 	cfg.SetIfaceID(ifaceID)
+
 	for _, opt := range opts {
 		opt(cfg)
 	}
@@ -221,6 +227,7 @@ func (f *Client) PutGuestDriveByID(ctx context.Context, driveID string, drive *m
 	params := ops.NewPutGuestDriveByIDParamsWithContext(timeout)
 	params.SetDriveID(driveID)
 	params.SetBody(drive)
+
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -238,6 +245,7 @@ func (f *Client) PutGuestVsock(ctx context.Context, vsock *models.Vsock, opts ..
 	params := ops.NewPutGuestVsockParams()
 	params.SetContext(ctx)
 	params.SetBody(vsock)
+
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -257,6 +265,7 @@ func (f *Client) PatchVM(ctx context.Context, vm *models.VM, opts ...PatchVMOpt)
 
 	params := ops.NewPatchVMParamsWithContext(timeout)
 	params.SetBody(vm)
+
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -308,6 +317,7 @@ func (f *Client) CreateSyncAction(ctx context.Context, info *models.InstanceActi
 	params := ops.NewCreateSyncActionParams()
 	params.SetContext(ctx)
 	params.SetInfo(info)
+
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -325,6 +335,7 @@ func (f *Client) PutMmds(ctx context.Context, metadata interface{}, opts ...PutM
 	params := ops.NewPutMmdsParams()
 	params.SetContext(ctx)
 	params.SetBody(metadata)
+
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -341,6 +352,7 @@ type GetMmdsOpt func(*ops.GetMmdsParams)
 func (f *Client) GetMmds(ctx context.Context, opts ...GetMmdsOpt) (*ops.GetMmdsOK, error) {
 	params := ops.NewGetMmdsParams()
 	params.SetContext(ctx)
+
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -358,6 +370,7 @@ func (f *Client) PatchMmds(ctx context.Context, metadata interface{}, opts ...Pa
 	params := ops.NewPatchMmdsParams()
 	params.SetContext(ctx)
 	params.SetBody(metadata)
+
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -384,6 +397,7 @@ type GetMachineConfigurationOpt func(*ops.GetMachineConfigurationParams)
 func (f *Client) GetMachineConfiguration(opts ...GetMachineConfigurationOpt) (*ops.GetMachineConfigurationOK, error) {
 	p := ops.NewGetMachineConfigurationParams()
 	p.SetTimeout(time.Duration(f.firecrackerRequestTimeout) * time.Millisecond)
+
 	for _, opt := range opts {
 		opt(p)
 	}
@@ -400,6 +414,7 @@ type DescribeInstanceOpt func(*ops.DescribeInstanceParams)
 func (f *Client) GetInstanceInfo(ctx context.Context, opts ...DescribeInstanceOpt) (*ops.DescribeInstanceOK, error) {
 	params := ops.NewDescribeInstanceParams()
 	params.SetContext(ctx)
+
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -443,6 +458,7 @@ func (f *Client) PutBalloon(ctx context.Context, balloon *models.Balloon, opts .
 
 	params := ops.NewPutBalloonParamsWithContext(timeout)
 	params.SetBody(balloon)
+
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -472,6 +488,7 @@ func (f *Client) PatchBalloon(ctx context.Context, ballonUpdate *models.BalloonU
 
 	params := ops.NewPatchBalloonParamsWithContext(timeout)
 	params.SetBody(ballonUpdate)
+
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -501,6 +518,7 @@ func (f *Client) PatchBalloonStatsInterval(ctx context.Context, balloonStatsUpda
 
 	params := ops.NewPatchBalloonStatsIntervalParamsWithContext(timeout)
 	params.SetBody(balloonStatsUpdate)
+
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -513,6 +531,7 @@ type GetExportVMConfigOpt func(*ops.GetExportVMConfigParams)
 func (f *Client) GetExportVMConfig(opts ...GetExportVMConfigOpt) (*ops.GetExportVMConfigOK, error) {
 	p := ops.NewGetExportVMConfigParams()
 	p.SetTimeout(time.Duration(f.firecrackerRequestTimeout) * time.Millisecond)
+
 	for _, opt := range opts {
 		opt(p)
 	}

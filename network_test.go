@@ -251,15 +251,18 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 	if testing.Short() {
 		t.Skip()
 	}
+
 	fctesting.RequiresRoot(t)
 
 	cniBinPath := []string{testDataBin, "/opt/cni/bin"}
 
 	dir, err := os.MkdirTemp("", fsSafeTestName.Replace(t.Name()))
 	require.NoError(t, err)
+
 	defer os.RemoveAll(dir)
 
 	testCNIDir := filepath.Join(dir, "TestCNI")
+
 	os.RemoveAll(testCNIDir)
 	defer os.RemoveAll(testCNIDir)
 
@@ -273,8 +276,10 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 		os.MkdirAll(cniConfDir, 0777), // broad permissions for tests
 		"failed to create cni conf dir")
 
-	const ifName = "veth0"
-	const networkName = "fcnet"
+	const (
+		ifName      = "veth0"
+		networkName = "fcnet"
+	)
 
 	cniConf := fmt.Sprintf(`{
   "cniVersion": "0.3.1",
@@ -296,7 +301,7 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 
 	var networkConf *libcni.NetworkConfigList
 
-	cniConfPath := filepath.Join(cniConfDir, fmt.Sprintf("%s.conflist", networkName))
+	cniConfPath := filepath.Join(cniConfDir, networkName+".conflist")
 	if useConfFile {
 		require.NoError(t,
 			os.WriteFile(cniConfPath, []byte(cniConf), 0666), // broad permissions for tests
@@ -315,6 +320,7 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 	if runtime.GOARCH == "arm64" {
 		return
 	}
+
 	numVMs := 10
 	vmIPs := make(chan string, numVMs)
 
@@ -327,8 +333,8 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 
 		vmID := fmt.Sprintf("%d-%s-%d", timestamp, networkName, i)
 
-		firecrackerSockPath := filepath.Join(testCNIDir, fmt.Sprintf("%s.sock", vmID))
-		rootfsPath := filepath.Join(testCNIDir, fmt.Sprintf("%s.img", vmID))
+		firecrackerSockPath := filepath.Join(testCNIDir, vmID+".sock")
+		rootfsPath := filepath.Join(testCNIDir, vmID+".img")
 
 		ctx, cancel := context.WithCancel(context.Background())
 		// NewMachine cannot be in the goroutine below, since go-openapi/runtime has a globally-shared mutable logger...
@@ -350,6 +356,7 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 			testPing(t, vmIP, 3, 5*time.Second)
 
 			require.NoError(t, m.StopVMM(), "failed to stop machine")
+
 			waitCtx, waitCancel := context.WithTimeout(ctx, 3*time.Second)
 
 			// Having an error is fine, since StopVM() kills a Firecracker process.
@@ -360,9 +367,9 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 
 			_, err := os.Stat(expectedCacheDirPath)
 			assert.True(t, os.IsNotExist(err), "expected CNI cache dir to not exist after vm exit")
-
 		}(ctx, cancel, m, vmID)
 	}
+
 	vmWg.Wait()
 	close(vmIPs)
 
