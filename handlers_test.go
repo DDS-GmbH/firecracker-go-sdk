@@ -530,7 +530,7 @@ func TestHandlers(t *testing.T) {
 	}
 	mmdsAddress := net.IPv4(169, 254, 169, 254)
 	mmdsConfig := &models.MmdsConfig{
-		IPV4Address:       String(mmdsAddress.String()),
+		IPv4Address:       String(mmdsAddress.String()),
 		NetworkInterfaces: []string{"1"},
 		Version:           String(string(MMDSv1)),
 	}
@@ -543,7 +543,7 @@ func TestHandlers(t *testing.T) {
 		{
 			Handler: BootstrapLoggingHandler,
 			Client: fctesting.MockClient{
-				PutLoggerFn: func(params *ops.PutLoggerParams) (*ops.PutLoggerNoContent, error) {
+				PutLoggerFn: func(params *ops.PutLoggerParams, opts ...ops.ClientOption) (*ops.PutLoggerNoContent, error) {
 					called = BootstrapLoggingHandler.Name
 					return nil, nil
 				},
@@ -557,11 +557,11 @@ func TestHandlers(t *testing.T) {
 		{
 			Handler: CreateMachineHandler,
 			Client: fctesting.MockClient{
-				PutMachineConfigurationFn: func(params *ops.PutMachineConfigurationParams) (*ops.PutMachineConfigurationNoContent, error) {
+				PutMachineConfigurationFn: func(params *ops.PutMachineConfigurationParams, opts ...ops.ClientOption) (*ops.PutMachineConfigurationNoContent, error) {
 					called = CreateMachineHandler.Name
 					return &ops.PutMachineConfigurationNoContent{}, nil
 				},
-				GetMachineConfigurationFn: func(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error) {
+				GetMachineConfigurationFn: func(params *ops.GetMachineConfigurationParams, opts ...ops.ClientOption) (*ops.GetMachineConfigurationOK, error) {
 					return &ops.GetMachineConfigurationOK{
 						Payload: &models.MachineConfiguration{},
 					}, nil
@@ -572,7 +572,7 @@ func TestHandlers(t *testing.T) {
 		{
 			Handler: CreateBootSourceHandler,
 			Client: fctesting.MockClient{
-				PutGuestBootSourceFn: func(params *ops.PutGuestBootSourceParams) (*ops.PutGuestBootSourceNoContent, error) {
+				PutGuestBootSourceFn: func(params *ops.PutGuestBootSourceParams, opts ...ops.ClientOption) (*ops.PutGuestBootSourceNoContent, error) {
 					called = CreateBootSourceHandler.Name
 					return &ops.PutGuestBootSourceNoContent{}, nil
 				},
@@ -582,7 +582,7 @@ func TestHandlers(t *testing.T) {
 		{
 			Handler: AttachDrivesHandler,
 			Client: fctesting.MockClient{
-				PutGuestDriveByIDFn: func(params *ops.PutGuestDriveByIDParams) (*ops.PutGuestDriveByIDNoContent, error) {
+				PutGuestDriveByIDFn: func(params *ops.PutGuestDriveByIDParams, opts ...ops.ClientOption) (*ops.PutGuestDriveByIDNoContent, error) {
 					called = AttachDrivesHandler.Name
 					return &ops.PutGuestDriveByIDNoContent{}, nil
 				},
@@ -594,7 +594,7 @@ func TestHandlers(t *testing.T) {
 		{
 			Handler: CreateNetworkInterfacesHandler,
 			Client: fctesting.MockClient{
-				PutGuestNetworkInterfaceByIDFn: func(params *ops.PutGuestNetworkInterfaceByIDParams) (*ops.PutGuestNetworkInterfaceByIDNoContent, error) {
+				PutGuestNetworkInterfaceByIDFn: func(params *ops.PutGuestNetworkInterfaceByIDParams, opts ...ops.ClientOption) (*ops.PutGuestNetworkInterfaceByIDNoContent, error) {
 					called = CreateNetworkInterfacesHandler.Name
 					return &ops.PutGuestNetworkInterfaceByIDNoContent{}, nil
 				},
@@ -611,7 +611,7 @@ func TestHandlers(t *testing.T) {
 		{
 			Handler: AddVsocksHandler,
 			Client: fctesting.MockClient{
-				PutGuestVsockFn: func(params *ops.PutGuestVsockParams) (*ops.PutGuestVsockNoContent, error) {
+				PutGuestVsockFn: func(params *ops.PutGuestVsockParams, opts ...ops.ClientOption) (*ops.PutGuestVsockNoContent, error) {
 					called = AddVsocksHandler.Name
 					return &ops.PutGuestVsockNoContent{}, nil
 				},
@@ -628,7 +628,7 @@ func TestHandlers(t *testing.T) {
 		{
 			Handler: NewSetMetadataHandler(metadata),
 			Client: fctesting.MockClient{
-				PutMmdsFn: func(params *ops.PutMmdsParams) (*ops.PutMmdsNoContent, error) {
+				PutMmdsFn: func(params *ops.PutMmdsParams, opts ...ops.ClientOption) (*ops.PutMmdsNoContent, error) {
 					called = SetMetadataHandlerName
 					if !reflect.DeepEqual(metadata, params.Body) {
 						return nil, fmt.Errorf("incorrect metadata value: %v", params.Body)
@@ -641,7 +641,7 @@ func TestHandlers(t *testing.T) {
 		{
 			Handler: ConfigMmdsHandler,
 			Client: fctesting.MockClient{
-				PutMmdsConfigFn: func(params *ops.PutMmdsConfigParams) (*ops.PutMmdsConfigNoContent, error) {
+				PutMmdsConfigFn: func(params *ops.PutMmdsConfigParams, opts ...ops.ClientOption) (*ops.PutMmdsConfigNoContent, error) {
 					called = ConfigMmdsHandlerName
 					if !reflect.DeepEqual(mmdsConfig, params.Body) {
 						return nil, fmt.Errorf("incorrect mmds config value: %v", params.Body)

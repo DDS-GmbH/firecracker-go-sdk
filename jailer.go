@@ -457,7 +457,7 @@ func LinkFilesHandler(kernelImageFileName string) Handler {
 
 			// copy all drives to the root fs
 			for i, drive := range m.Cfg.Drives {
-				hostPath := StringValue(drive.PathOnHost)
+				hostPath := drive.PathOnHost
 				driveFileName := filepath.Base(hostPath)
 
 				if err := os.Link(
@@ -467,7 +467,7 @@ func LinkFilesHandler(kernelImageFileName string) Handler {
 					return err
 				}
 
-				m.Cfg.Drives[i].PathOnHost = String(driveFileName)
+				m.Cfg.Drives[i].PathOnHost = driveFileName
 			}
 
 			m.Cfg.KernelImagePath = kernelImageFileName

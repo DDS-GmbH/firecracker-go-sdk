@@ -34,7 +34,7 @@ const (
 )
 
 // newFirecrackerClient creates a FirecrackerClient
-func newFirecrackerClient(socketPath string, logger *logrus.Entry, debug bool) *client.Firecracker {
+func newFirecrackerClient(socketPath string, logger *logrus.Entry, debug bool) *client.FirecrackerAPI {
 	httpClient := client.NewHTTPClient(strfmt.NewFormats())
 
 	transport := NewUnixSocketTransport(socketPath, logger, debug)
@@ -48,7 +48,7 @@ type ClientOpt func(*Client)
 
 // WithOpsClient will return a functional option and replace the operations
 // client. This is useful for mock and stub testing.
-func WithOpsClient(opsClient ops.ClientIface) ClientOpt {
+func WithOpsClient(opsClient ops.ClientService) ClientOpt {
 	return func(c *Client) {
 		c.client.Operations = opsClient
 	}
@@ -56,7 +56,7 @@ func WithOpsClient(opsClient ops.ClientIface) ClientOpt {
 
 // Client is a client for interacting with the Firecracker API
 type Client struct {
-	client                    *client.Firecracker
+	client                    *client.FirecrackerAPI
 	firecrackerRequestTimeout int
 	firecrackerInitTimeout    int
 }

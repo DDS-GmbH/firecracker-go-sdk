@@ -194,7 +194,7 @@ func (cfg *Config) Validate() error {
 
 	for _, drive := range cfg.Drives {
 		if BoolValue(drive.IsRootDevice) {
-			rootPath := StringValue(drive.PathOnHost)
+			rootPath := drive.PathOnHost
 			if _, err := os.Stat(rootPath); err != nil {
 				return fmt.Errorf("failed to stat host drive path, %q: %v", rootPath, err)
 			}
@@ -225,7 +225,7 @@ func (cfg *Config) ValidateLoadSnapshot() error {
 	}
 
 	for _, drive := range cfg.Drives {
-		rootPath := StringValue(drive.PathOnHost)
+		rootPath := drive.PathOnHost
 		if _, err := os.Stat(rootPath); err != nil {
 			return fmt.Errorf("failed to stat drive path, %q: %v", rootPath, err)
 		}
@@ -539,10 +539,10 @@ func (m *Machine) addVsocks(ctx context.Context, vsocks ...VsockDevice) error {
 func (m *Machine) attachDrives(ctx context.Context, drives ...models.Drive) error {
 	for _, dev := range drives {
 		if err := m.attachDrive(ctx, dev); err != nil {
-			m.logger.Errorf("While attaching drive %s, got error %s", StringValue(dev.PathOnHost), err)
+			m.logger.Errorf("While attaching drive %s, got error %s", dev.PathOnHost, err)
 			return err
 		}
-		m.logger.Debugf("attachDrive returned for %s", StringValue(dev.PathOnHost))
+		m.logger.Debugf("attachDrive returned for %s", dev.PathOnHost)
 	}
 
 	return nil
@@ -714,7 +714,7 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 	}
 
 	l := models.Logger{
-		LogPath:       String(path),
+		LogPath:       path,
 		Level:         level,
 		ShowLevel:     Bool(true),
 		ShowLogOrigin: Bool(false),
@@ -892,7 +892,7 @@ func (m *Machine) UpdateGuestNetworkInterfaceRateLimit(ctx context.Context, ifac
 
 // attachDrive attaches a secondary block device
 func (m *Machine) attachDrive(ctx context.Context, dev models.Drive) error {
-	hostPath := StringValue(dev.PathOnHost)
+	hostPath := dev.PathOnHost
 	m.logger.Infof("Attaching drive %s, slot %s, root %t.", hostPath, StringValue(dev.DriveID), BoolValue(dev.IsRootDevice))
 	respNoContent, err := m.client.PutGuestDriveByID(ctx, StringValue(dev.DriveID), &dev)
 	if err == nil {
@@ -963,7 +963,7 @@ func (m *Machine) setMmdsConfig(ctx context.Context, address net.IP, ifaces Netw
 		mmdsCfg.Version = String(string(MMDSv1))
 	}
 	if address != nil {
-		mmdsCfg.IPV4Address = String(address.String())
+		mmdsCfg.IPv4Address = String(address.String())
 	}
 	for id, iface := range ifaces {
 		if iface.AllowMMDS {

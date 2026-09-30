@@ -217,8 +217,8 @@ func TestJailerMicroVMExecution(t *testing.T) {
 			{
 				DriveID:      String("1"),
 				IsRootDevice: Bool(true),
-				IsReadOnly:   Bool(false),
-				PathOnHost:   String(rootdrivePath),
+				IsReadOnly:   false,
+				PathOnHost:   rootdrivePath,
 			},
 		},
 		JailerCfg: &JailerConfig{
@@ -258,7 +258,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 
 	for _, drive := range cfg.Drives {
 		driveImageInfo := syscall.Stat_t{}
-		drivePath := StringValue(drive.PathOnHost)
+		drivePath := drive.PathOnHost
 		if err := syscall.Stat(drivePath, &driveImageInfo); err != nil {
 			t.Fatalf("Failed to stat kernel image: %v", err)
 		}
@@ -573,7 +573,8 @@ func TestStartVMMOnce(t *testing.T) {
 		},
 	}
 	if cpu_temp, err := internal.SupportCPUTemplate(); cpu_temp && err == nil {
-		cfg.MachineCfg.CPUTemplate = models.CPUTemplate(models.CPUTemplateT2)
+		template := models.CPUTemplateT2
+		cfg.MachineCfg.CPUTemplate = &template
 	}
 	ctx := context.Background()
 	cmd := VMCommandBuilder{}.
@@ -752,8 +753,8 @@ func testAttachRootDrive(ctx context.Context, t *testing.T, m *Machine) {
 	drive := models.Drive{
 		DriveID:      String("0"),
 		IsRootDevice: Bool(true),
-		IsReadOnly:   Bool(true),
-		PathOnHost:   String(testRootfs),
+		IsReadOnly:   true,
+		PathOnHost:   testRootfs,
 	}
 	err := m.attachDrives(ctx, drive)
 	if err != nil {
@@ -765,8 +766,8 @@ func testAttachSecondaryDrive(ctx context.Context, t *testing.T, m *Machine) {
 	drive := models.Drive{
 		DriveID:      String("2"),
 		IsRootDevice: Bool(false),
-		IsReadOnly:   Bool(true),
-		PathOnHost:   String(filepath.Join(testDataPath, "drive-2.img")),
+		IsReadOnly:   true,
+		PathOnHost:   filepath.Join(testDataPath, "drive-2.img"),
 	}
 	err := m.attachDrive(ctx, drive)
 	if err != nil {
@@ -890,7 +891,7 @@ func testShutdown(ctx context.Context, t *testing.T, m *Machine) {
 func TestWaitForSocket(t *testing.T) {
 	okClient := fctesting.MockClient{}
 	errClient := fctesting.MockClient{
-		GetMachineConfigurationFn: func(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error) {
+		GetMachineConfigurationFn: func(params *ops.GetMachineConfigurationParams, opts ...ops.ClientOption) (*ops.GetMachineConfigurationOK, error) {
 			return nil, errors.New("http error")
 		},
 	}
@@ -1102,15 +1103,15 @@ func TestLogFiles(t *testing.T) {
 			{
 				DriveID:      String("0"),
 				IsRootDevice: Bool(true),
-				IsReadOnly:   Bool(false),
-				PathOnHost:   String(testRootfs),
+				IsReadOnly:   false,
+				PathOnHost:   testRootfs,
 			},
 		},
 		DisableValidation: true,
 	}
 
 	opClient := fctesting.MockClient{
-		GetMachineConfigurationFn: func(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error) {
+		GetMachineConfigurationFn: func(params *ops.GetMachineConfigurationParams, opts ...ops.ClientOption) (*ops.GetMachineConfigurationOK, error) {
 			return &ops.GetMachineConfigurationOK{
 				Payload: &models.MachineConfiguration{},
 			}, nil
@@ -1381,8 +1382,8 @@ func TestPID(t *testing.T) {
 			{
 				DriveID:      String("1"),
 				IsRootDevice: Bool(true),
-				IsReadOnly:   Bool(false),
-				PathOnHost:   String(rootfsPath),
+				IsReadOnly:   false,
+				PathOnHost:   rootfsPath,
 			},
 		},
 		DisableValidation: true,
@@ -1653,8 +1654,8 @@ func withRootDrive(rootfs string) machineConfigOpt {
 				drives = append(drives, models.Drive{
 					DriveID:      String("root"),
 					IsRootDevice: Bool(true),
-					IsReadOnly:   Bool(false),
-					PathOnHost:   String(rootfs),
+					IsReadOnly:   false,
+					PathOnHost:   rootfs,
 				})
 				inserted = true
 			} else {
@@ -1666,8 +1667,8 @@ func withRootDrive(rootfs string) machineConfigOpt {
 			drives = append(drives, models.Drive{
 				DriveID:      String("root"),
 				IsRootDevice: Bool(true),
-				IsReadOnly:   Bool(false),
-				PathOnHost:   String(rootfs),
+				IsReadOnly:   false,
+				PathOnHost:   rootfs,
 			})
 		}
 
@@ -1694,8 +1695,8 @@ func createValidConfig(t *testing.T, socketPath string, opts ...machineConfigOpt
 			{
 				DriveID:      String("root"),
 				IsRootDevice: Bool(true),
-				IsReadOnly:   Bool(true),
-				PathOnHost:   String(testRootfs),
+				IsReadOnly:   true,
+				PathOnHost:   testRootfs,
 			},
 		},
 	}
@@ -1729,8 +1730,8 @@ func TestSignalForwarding(t *testing.T) {
 			{
 				DriveID:      String("0"),
 				IsRootDevice: Bool(true),
-				IsReadOnly:   Bool(false),
-				PathOnHost:   String(testRootfs),
+				IsReadOnly:   false,
+				PathOnHost:   testRootfs,
 			},
 		},
 		DisableValidation: true,
@@ -2116,8 +2117,8 @@ func TestLoadSnapshot(t *testing.T) {
 						{
 							DriveID:      String("root"),
 							IsRootDevice: Bool(true),
-							IsReadOnly:   Bool(true),
-							PathOnHost:   String(testRootfs),
+							IsReadOnly:   true,
+							PathOnHost:   testRootfs,
 						},
 					},
 				}
@@ -2176,8 +2177,8 @@ func TestLoadSnapshot(t *testing.T) {
 						{
 							DriveID:      String("root"),
 							IsRootDevice: Bool(true),
-							IsReadOnly:   Bool(true),
-							PathOnHost:   String(testRootfs),
+							IsReadOnly:   true,
+							PathOnHost:   testRootfs,
 						},
 					},
 				}
@@ -2324,8 +2325,8 @@ func TestLoadSnapshot(t *testing.T) {
 						{
 							DriveID:      String("root"),
 							IsRootDevice: Bool(true),
-							IsReadOnly:   Bool(true),
-							PathOnHost:   String(rootfsPath),
+							IsReadOnly:   true,
+							PathOnHost:   rootfsPath,
 						},
 					},
 					NetworkInterfaces: []NetworkInterface{
