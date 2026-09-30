@@ -122,7 +122,7 @@ $(FC_TEST_BIN_PATH)/tc-redirect-tap:
 	$(call install_go,github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap,v0.0.0-20250516183331-34bf829e9a5c)
 
 $(FC_TEST_DATA_PATH)/ltag:
-	$(call install_go,github.com/kunalkushwaha/ltag,v0.3.0)
+	$(call install_go,github.com/containerd/ltag,v0.3.0)
 
 # test-images builds firecracker and jailer from main branch of firecracker
 # to test against HEAD of firecracker  
