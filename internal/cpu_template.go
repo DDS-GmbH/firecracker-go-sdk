@@ -35,20 +35,26 @@ func SupportCPUTemplate() (bool, error) {
 	}
 
 	var err error
+
 	isIntelOnce.Do(func() {
 		isIntel, err = checkIsIntel()
 	})
+
 	return isIntel, err
 }
 
 var vendorID = regexp.MustCompile(`^vendor_id\s*:\s*(.+)$`)
 
-func checkIsIntel() (bool, error) {
+func checkIsIntel() (b bool, e error) {
 	f, err := os.Open("/proc/cpuinfo")
 	if err != nil {
 		return false, err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil && e == nil {
+			e = err
+		}
+	}()
 
 	id, err := findFirstVendorID(f)
 	if err != nil {
@@ -61,11 +67,17 @@ func checkIsIntel() (bool, error) {
 func findFirstVendorID(r io.Reader) (string, error) {
 	s := bufio.NewScanner(r)
 	for s.Scan() {
+		if s.Err() != nil {
+			return "", s.Err()
+		}
+
 		line := s.Text()
+
 		matches := vendorID.FindStringSubmatch(line)
 		if len(matches) == 2 {
 			return matches[1], nil
 		}
 	}
+
 	return "", nil
 }

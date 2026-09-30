@@ -39,6 +39,7 @@ func RequiresKVM(t testing.TB) {
 	accessErr := unix.Access("/dev/kvm", unix.W_OK)
 	if accessErr != nil {
 		var name string
+
 		u, err := user.Current()
 		if err == nil {
 			name = u.Name
@@ -48,6 +49,7 @@ func RequiresKVM(t testing.TB) {
 		if name == "" {
 			name = fmt.Sprintf("uid=%d", os.Getuid())
 		}
+
 		t.Skipf("/dev/kvm is not writable from %s: %s", name, accessErr)
 	}
 }
@@ -70,6 +72,7 @@ func RequiresRoot(t testing.TB) {
 
 func newLogger(t testing.TB) *log.Logger {
 	str := os.Getenv(logLevelEnvName)
+
 	l := log.New()
 	if str == "" {
 		return l
@@ -81,6 +84,7 @@ func newLogger(t testing.TB) *log.Logger {
 	}
 
 	l.SetLevel(logLevel)
+
 	return l
 }
 

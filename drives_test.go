@@ -23,10 +23,10 @@ func TestDrivesBuilder(t *testing.T) {
 	expectedPath := "/path/to/rootfs"
 	expectedDrives := []models.Drive{
 		{
-			DriveID:      String(rootDriveName),
-			PathOnHost:   &expectedPath,
-			IsRootDevice: Bool(true),
-			IsReadOnly:   Bool(false),
+			DriveID:      new(rootDriveName),
+			PathOnHost:   expectedPath,
+			IsRootDevice: new(true),
+			IsReadOnly:   false,
 		},
 	}
 
@@ -40,10 +40,10 @@ func TestDrivesBuilderWithRootDrive(t *testing.T) {
 	expectedPath := "/path/to/rootfs"
 	expectedDrives := []models.Drive{
 		{
-			DriveID:      String("foo"),
-			PathOnHost:   &expectedPath,
-			IsRootDevice: Bool(true),
-			IsReadOnly:   Bool(false),
+			DriveID:      new("foo"),
+			PathOnHost:   expectedPath,
+			IsRootDevice: new(true),
+			IsReadOnly:   false,
 		},
 	}
 
@@ -60,11 +60,11 @@ func TestDrivesBuilderWithCacheType(t *testing.T) {
 	expectedCacheType := models.DriveCacheTypeWriteback
 	expectedDrives := []models.Drive{
 		{
-			DriveID:      String("root_drive"),
-			PathOnHost:   &expectedPath,
-			IsRootDevice: Bool(true),
-			IsReadOnly:   Bool(false),
-			CacheType:    String(expectedCacheType),
+			DriveID:      new("root_drive"),
+			PathOnHost:   expectedPath,
+			IsRootDevice: new(true),
+			IsReadOnly:   false,
+			CacheType:    new(expectedCacheType),
 		},
 	}
 
@@ -102,46 +102,47 @@ func TestDrivesBuilderAddDrive(t *testing.T) {
 			Path:     "/5",
 			ReadOnly: true,
 			Opt: func(drive *models.Drive) {
-				drive.CacheType = String(models.DriveCacheTypeWriteback)
+				drive.CacheType = new(models.DriveCacheTypeWriteback)
 			},
 		},
 	}
 	expectedDrives := []models.Drive{
 		{
-			DriveID:      String("0"),
-			PathOnHost:   String("/2"),
-			IsRootDevice: Bool(false),
-			IsReadOnly:   Bool(true),
+			DriveID:      new("0"),
+			PathOnHost:   "/2",
+			IsRootDevice: new(false),
+			IsReadOnly:   true,
 		},
 		{
-			DriveID:      String("1"),
-			PathOnHost:   String("/3"),
-			IsRootDevice: Bool(false),
-			IsReadOnly:   Bool(false),
+			DriveID:      new("1"),
+			PathOnHost:   "/3",
+			IsRootDevice: new(false),
+			IsReadOnly:   false,
 		},
 		{
-			DriveID:      String("2"),
-			PathOnHost:   String("/4"),
-			IsRootDevice: Bool(false),
-			IsReadOnly:   Bool(false),
+			DriveID:      new("2"),
+			PathOnHost:   "/4",
+			IsRootDevice: new(false),
+			IsReadOnly:   false,
 			Partuuid:     "uuid",
 		},
 		{
-			DriveID:      String("3"),
-			PathOnHost:   String("/5"),
-			IsRootDevice: Bool(false),
-			IsReadOnly:   Bool(true),
-			CacheType:    String(models.DriveCacheTypeWriteback),
+			DriveID:      new("3"),
+			PathOnHost:   "/5",
+			IsRootDevice: new(false),
+			IsReadOnly:   true,
+			CacheType:    new(models.DriveCacheTypeWriteback),
 		},
 		{
-			DriveID:      String(rootDriveName),
-			PathOnHost:   &rootPath,
-			IsRootDevice: Bool(true),
-			IsReadOnly:   Bool(false),
+			DriveID:      new(rootDriveName),
+			PathOnHost:   rootPath,
+			IsRootDevice: new(true),
+			IsReadOnly:   false,
 		},
 	}
 
 	b := NewDrivesBuilder(rootPath)
+
 	for _, drive := range drivesToAdd {
 		if drive.Opt != nil {
 			b = b.AddDrive(drive.Path, drive.ReadOnly, drive.Opt)
@@ -161,10 +162,10 @@ func TestDrivesBuilderWithIoEngine(t *testing.T) {
 	expectedVal := "Async"
 	expectedDrives := []models.Drive{
 		{
-			DriveID:      String(rootDriveName),
-			PathOnHost:   &expectedPath,
-			IsRootDevice: Bool(true),
-			IsReadOnly:   Bool(false),
+			DriveID:      new(rootDriveName),
+			PathOnHost:   expectedPath,
+			IsRootDevice: new(true),
+			IsReadOnly:   false,
 			IoEngine:     &expectedVal,
 		},
 	}

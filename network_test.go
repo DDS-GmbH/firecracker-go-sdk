@@ -27,7 +27,7 @@ import (
 	"github.com/containernetworking/cni/libcni"
 	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
-	"github.com/go-ping/ping"
+	probing "github.com/prometheus-community/pro-bing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -251,15 +251,17 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 	if testing.Short() {
 		t.Skip()
 	}
+
 	fctesting.RequiresRoot(t)
 
 	cniBinPath := []string{testDataBin, "/opt/cni/bin"}
 
-	dir, err := os.MkdirTemp("", fsSafeTestName.Replace(t.Name()))
-	require.NoError(t, err)
+	dir := t.TempDir()
+
 	defer os.RemoveAll(dir)
 
 	testCNIDir := filepath.Join(dir, "TestCNI")
+
 	os.RemoveAll(testCNIDir)
 	defer os.RemoveAll(testCNIDir)
 
@@ -273,8 +275,10 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 		os.MkdirAll(cniConfDir, 0777), // broad permissions for tests
 		"failed to create cni conf dir")
 
-	const ifName = "veth0"
-	const networkName = "fcnet"
+	const (
+		ifName      = "veth0"
+		networkName = "fcnet"
+	)
 
 	cniConf := fmt.Sprintf(`{
   "cniVersion": "0.3.1",
@@ -296,7 +300,7 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 
 	var networkConf *libcni.NetworkConfigList
 
-	cniConfPath := filepath.Join(cniConfDir, fmt.Sprintf("%s.conflist", networkName))
+	cniConfPath := filepath.Join(cniConfDir, networkName+".conflist")
 	if useConfFile {
 		require.NoError(t,
 			os.WriteFile(cniConfPath, []byte(cniConf), 0666), // broad permissions for tests
@@ -315,6 +319,7 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 	if runtime.GOARCH == "arm64" {
 		return
 	}
+
 	numVMs := 10
 	vmIPs := make(chan string, numVMs)
 
@@ -322,13 +327,13 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 	timestamp := time.Now().UnixNano()
 
 	var vmWg sync.WaitGroup
-	for i := 0; i < numVMs; i++ {
+	for i := range numVMs {
 		vmWg.Add(1)
 
 		vmID := fmt.Sprintf("%d-%s-%d", timestamp, networkName, i)
 
-		firecrackerSockPath := filepath.Join(testCNIDir, fmt.Sprintf("%s.sock", vmID))
-		rootfsPath := filepath.Join(testCNIDir, fmt.Sprintf("%s.img", vmID))
+		firecrackerSockPath := filepath.Join(testCNIDir, vmID+".sock")
+		rootfsPath := filepath.Join(testCNIDir, vmID+".img")
 
 		ctx, cancel := context.WithCancel(context.Background())
 		// NewMachine cannot be in the goroutine below, since go-openapi/runtime has a globally-shared mutable logger...
@@ -350,6 +355,7 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 			testPing(t, vmIP, 3, 5*time.Second)
 
 			require.NoError(t, m.StopVMM(), "failed to stop machine")
+
 			waitCtx, waitCancel := context.WithTimeout(ctx, 3*time.Second)
 
 			// Having an error is fine, since StopVM() kills a Firecracker process.
@@ -360,9 +366,9 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 
 			_, err := os.Stat(expectedCacheDirPath)
 			assert.True(t, os.IsNotExist(err), "expected CNI cache dir to not exist after vm exit")
-
 		}(ctx, cancel, m, vmID)
 	}
+
 	vmWg.Wait()
 	close(vmIPs)
 
@@ -406,15 +412,15 @@ func newCNIMachine(t *testing.T,
 		SocketPath:      firecrackerSockPath,
 		KernelImagePath: getVmlinuxPath(t),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(2),
-			MemSizeMib: Int64(256),
+			VcpuCount:  new(int64(2)),
+			MemSizeMib: new(int64(256)),
 		},
 		Drives: []models.Drive{
 			{
-				DriveID:      String("1"),
-				IsRootDevice: Bool(true),
-				IsReadOnly:   Bool(false),
-				PathOnHost:   String(rootfsPath),
+				DriveID:      new("1"),
+				IsRootDevice: new(true),
+				IsReadOnly:   false,
+				PathOnHost:   rootfsPath,
 			},
 		},
 		NetworkInterfaces: []NetworkInterface{{
@@ -460,21 +466,23 @@ func startCNIMachine(t *testing.T, ctx context.Context, m *Machine) string {
 
 func testPing(t *testing.T, ip string, count int, timeout time.Duration) {
 	// First, send one ping to make sure the machine is up
-	pinger, err := ping.NewPinger(ip)
+	pinger, err := probing.NewPinger(ip)
 	require.NoError(t, err, "failed to create pinger")
 	pinger.SetPrivileged(true)
 
 	pinger.Count = 1
 	pinger.Timeout = 5 * time.Second
-	pinger.Run()
+	err = pinger.Run()
+	require.NoError(t, err, "pinger run failed")
 
 	// Then send multiple pings to check that the network is working correctly
-	pinger, err = ping.NewPinger(ip)
+	pinger, err = probing.NewPinger(ip)
 	require.NoError(t, err, "failed to create pinger")
 	pinger.SetPrivileged(true)
 	pinger.Count = count
 	pinger.Timeout = timeout
-	pinger.Run()
+	err = pinger.Run()
+	require.NoError(t, err, "pinger run failed")
 
 	pingStats := pinger.Statistics()
 	assert.Equal(t, pinger.Count, pingStats.PacketsRecv, "machine did not respond to all pings")

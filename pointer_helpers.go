@@ -23,8 +23,10 @@ func BoolValue(b *bool) bool {
 }
 
 // Bool will return a pointer value of the given parameter.
+//
+//go:fix inline
 func Bool(b bool) *bool {
-	return &b
+	return new(b)
 }
 
 // StringValue will return a string value. If the pointer is nil, then an empty
@@ -38,13 +40,17 @@ func StringValue(str *string) string {
 }
 
 // String will return a pointer value of the given parameter.
+//
+//go:fix inline
 func String(str string) *string {
-	return &str
+	return new(str)
 }
 
 // Int64 will return a pointer value of the given parameter.
+//
+//go:fix inline
 func Int64(v int64) *int64 {
-	return &v
+	return new(v)
 }
 
 // Int64Value will return an int64 value. If the pointer is nil, then zero will
@@ -68,6 +74,8 @@ func IntValue(v *int) int {
 }
 
 // Int will return a pointer value of the given parameters.
+//
+//go:fix inline
 func Int(v int) *int {
-	return &v
+	return new(v)
 }

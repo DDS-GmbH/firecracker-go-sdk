@@ -80,7 +80,9 @@ func modifyHandlersForLoadSnapshot(l HandlerList) HandlerList {
 	for _, h := range loadSnapshotRemoveHandlerList {
 		l = l.Remove(h.Name)
 	}
+
 	l = l.Append(LoadSnapshotHandler)
+
 	return l
 }
 
@@ -93,8 +95,8 @@ func modifyHandlersForLoadSnapshot(l HandlerList) HandlerList {
 func WithMemoryBackend(backendType, backendPath string) WithSnapshotOpt {
 	return func(cfg *SnapshotConfig) {
 		cfg.MemBackend = &models.MemoryBackend{
-			BackendType: String(backendType),
-			BackendPath: String(backendPath),
+			BackendType: new(backendType),
+			BackendPath: new(backendPath),
 		}
 	}
 }

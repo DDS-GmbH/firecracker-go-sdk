@@ -67,7 +67,7 @@ type SeccompConfig struct {
 var ErrAlreadyStarted = errors.New("firecracker: machine already started")
 
 // ErrGraceShutdown signifies that the Machine will shutdown gracefully and SendCtrlAltDelete is unable to send
-//var ErrGraceShutdown = errors.New("Shutdown gracefully: SendCtrlAltDelete is not supported if the arch is ARM64")
+// var ErrGraceShutdown = errors.New("Shutdown gracefully: SendCtrlAltDelete is not supported if the arch is ARM64")
 
 type MMDSVersion string
 
@@ -194,7 +194,7 @@ func (cfg *Config) Validate() error {
 
 	for _, drive := range cfg.Drives {
 		if BoolValue(drive.IsRootDevice) {
-			rootPath := StringValue(drive.PathOnHost)
+			rootPath := drive.PathOnHost
 			if _, err := os.Stat(rootPath); err != nil {
 				return fmt.Errorf("failed to stat host drive path, %q: %v", rootPath, err)
 			}
@@ -210,12 +210,14 @@ func (cfg *Config) Validate() error {
 
 	if cfg.MachineCfg.VcpuCount == nil ||
 		Int64Value(cfg.MachineCfg.VcpuCount) < 1 {
-		return fmt.Errorf("machine needs a nonzero VcpuCount")
+		return errors.New("machine needs a nonzero VcpuCount")
 	}
+
 	if cfg.MachineCfg.MemSizeMib == nil ||
 		Int64Value(cfg.MachineCfg.MemSizeMib) < 1 {
-		return fmt.Errorf("machine needs a nonzero amount of memory")
+		return errors.New("machine needs a nonzero amount of memory")
 	}
+
 	return nil
 }
 
@@ -225,7 +227,7 @@ func (cfg *Config) ValidateLoadSnapshot() error {
 	}
 
 	for _, drive := range cfg.Drives {
-		rootPath := StringValue(drive.PathOnHost)
+		rootPath := drive.PathOnHost
 		if _, err := os.Stat(rootPath); err != nil {
 			return fmt.Errorf("failed to stat drive path, %q: %v", rootPath, err)
 		}
@@ -288,18 +290,21 @@ func (m *Machine) Logger() *log.Entry {
 // PID returns the machine's running process PID or an error if not running
 func (m *Machine) PID() (int, error) {
 	if m.cmd == nil || m.cmd.Process == nil {
-		return 0, fmt.Errorf("machine is not running")
+		return 0, errors.New("machine is not running")
 	}
+
 	select {
 	case <-m.exitCh:
-		return 0, fmt.Errorf("machine process has exited")
+		return 0, errors.New("machine process has exited")
 	default:
 	}
+
 	return m.cmd.Process.Pid, nil
 }
 
 func (m *Machine) doCleanup() error {
 	var err *multierror.Error
+
 	m.cleanupOnce.Do(func() {
 		// run them in reverse order so changes are "unwound" (similar to defer statements)
 		for i := range m.cleanupFuncs {
@@ -307,6 +312,7 @@ func (m *Machine) doCleanup() error {
 			err = multierror.Append(err, cleanupFunc())
 		}
 	})
+
 	return err.ErrorOrNil()
 }
 
@@ -348,6 +354,7 @@ func seccompArgs(cfg *Config) []string {
 	} else if len(cfg.Seccomp.Filter) > 0 {
 		args = append(args, "--seccomp-filter", cfg.Seccomp.Filter)
 	}
+
 	return args
 }
 
@@ -372,6 +379,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		if err != nil {
 			return nil, fmt.Errorf("failed to create random ID for VMID: %w", err)
 		}
+
 		cfg.VMID = id.String()
 	}
 
@@ -419,6 +427,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 	}
 
 	m.logger.Debug("Called NewMachine()")
+
 	return m, nil
 }
 
@@ -432,11 +441,15 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 // ErrAlreadyStarted.
 func (m *Machine) Start(ctx context.Context) error {
 	m.logger.Debug("Called Machine.Start()")
+
 	alreadyStarted := true
+
 	m.startOnce.Do(func() {
 		m.logger.Debug("Marking Machine as Started")
+
 		alreadyStarted = false
 	})
+
 	if alreadyStarted {
 		return ErrAlreadyStarted
 	}
@@ -457,6 +470,7 @@ func (m *Machine) Start(ctx context.Context) error {
 	}
 
 	err = m.startInstance(ctx)
+
 	return err
 }
 
@@ -494,16 +508,18 @@ func (m *Machine) GetFirecrackerVersion(ctx context.Context) (string, error) {
 	}
 
 	m.logger.Debug("GetFirecrackerVersion successful")
+
 	return *resp.Payload.FirecrackerVersion, nil
 }
 
 func (m *Machine) setupNetwork(ctx context.Context) error {
-	err, cleanupFuncs := m.Cfg.NetworkInterfaces.setupNetwork(ctx, m.Cfg.VMID, m.Cfg.NetNS, m.logger)
+	cleanupFuncs, err := m.Cfg.NetworkInterfaces.setupNetwork(ctx, m.Cfg.VMID, m.Cfg.NetNS, m.logger)
 	m.cleanupFuncs = append(m.cleanupFuncs, cleanupFuncs...)
+
 	return err
 }
 
-func (m *Machine) setupKernelArgs(ctx context.Context) error {
+func (m *Machine) setupKernelArgs() error {
 	kernelArgs := parseKernelArgs(m.Cfg.KernelArgs)
 
 	// If any network interfaces have a static IP configured, we need to set the "ip=" boot param.
@@ -514,6 +530,7 @@ func (m *Machine) setupKernelArgs(ctx context.Context) error {
 	}
 
 	m.Cfg.KernelArgs = kernelArgs.String()
+
 	return nil
 }
 
@@ -528,21 +545,23 @@ func (m *Machine) createNetworkInterfaces(ctx context.Context, ifaces ...Network
 }
 
 func (m *Machine) addVsocks(ctx context.Context, vsocks ...VsockDevice) error {
-	for _, dev := range m.Cfg.VsockDevices {
+	for _, dev := range vsocks {
 		if err := m.addVsock(ctx, dev); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
 func (m *Machine) attachDrives(ctx context.Context, drives ...models.Drive) error {
 	for _, dev := range drives {
 		if err := m.attachDrive(ctx, dev); err != nil {
-			m.logger.Errorf("While attaching drive %s, got error %s", StringValue(dev.PathOnHost), err)
+			m.logger.Errorf("While attaching drive %s, got error %s", dev.PathOnHost, err)
 			return err
 		}
-		m.logger.Debugf("attachDrive returned for %s", StringValue(dev.PathOnHost))
+
+		m.logger.Debugf("attachDrive returned for %s", dev.PathOnHost)
 	}
 
 	return nil
@@ -580,6 +599,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 
 		return err
 	}
+
 	m.logger.Debugf("VMM started socket path is %s", m.Cfg.SocketPath)
 
 	m.cleanupFuncs = append(m.cleanupFuncs,
@@ -587,11 +607,13 @@ func (m *Machine) startVMM(ctx context.Context) error {
 			if err := os.Remove(m.Cfg.SocketPath); !os.IsNotExist(err) {
 				return err
 			}
+
 			return nil
 		},
 	)
 
 	errCh := make(chan error)
+
 	go func() {
 		waitErr := m.cmd.Wait()
 
@@ -628,7 +650,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	// Wait for firecracker to initialize:
 	err = m.waitForSocket(time.Duration(m.client.firecrackerInitTimeout)*time.Second, errCh)
 	if err != nil {
-		err = fmt.Errorf("Firecracker did not create API socket %s: %w", m.Cfg.SocketPath, err)
+		err = fmt.Errorf("firecracker did not create API socket %s: %w", m.Cfg.SocketPath, err)
 		m.fatalErr = err
 		close(m.exitCh)
 
@@ -645,6 +667,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 			// VMM exited on its own; no need to stop it.
 			return
 		}
+
 		err := m.stopVMM()
 		if err != nil {
 			m.logger.WithError(err).Errorf("failed to stop vm %q", m.Cfg.VMID)
@@ -660,6 +683,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	}()
 
 	m.logger.Debugf("returning from startVMM()")
+
 	return nil
 }
 
@@ -671,14 +695,17 @@ func (m *Machine) StopVMM() error {
 func (m *Machine) stopVMM() error {
 	if m.cmd != nil && m.cmd.Process != nil {
 		m.logger.Debug("stopVMM(): sending sigterm to firecracker")
+
 		err := m.cmd.Process.Signal(syscall.SIGTERM)
 		if err != nil && !strings.Contains(err.Error(), "os: process already finished") {
 			return err
 		}
 		// Wait for the cleanup to finish.
 		<-m.cleanupCh
+
 		return nil
 	}
+
 	m.logger.Debug("stopVMM(): no firecracker process running, not sending a signal")
 
 	// don't return an error if the process isn't even running
@@ -688,9 +715,11 @@ func (m *Machine) stopVMM() error {
 // createFifo sets up a FIFOs
 func createFifo(path string) error {
 	log.Debugf("Creating FIFO %s", path)
+
 	if err := syscall.Mkfifo(path, 0700); err != nil {
-		return fmt.Errorf("Failed to create log fifo: %v", err)
+		return fmt.Errorf("failed to create log fifo: %v", err)
 	}
+
 	return nil
 }
 
@@ -708,16 +737,16 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 
 	// m.Cfg.LogLevel cannot be nil, but Firecracker allows setting a logger
 	// without its level. Converting "" to nil to support the corner case.
-	level := String(m.Cfg.LogLevel)
+	level := new(m.Cfg.LogLevel)
 	if StringValue(level) == "" {
 		level = nil
 	}
 
 	l := models.Logger{
-		LogPath:       String(path),
+		LogPath:       path,
 		Level:         level,
-		ShowLevel:     Bool(true),
-		ShowLogOrigin: Bool(false),
+		ShowLevel:     new(true),
+		ShowLogOrigin: new(false),
 	}
 
 	_, err := m.client.PutLogger(ctx, &l)
@@ -743,7 +772,7 @@ func (m *Machine) setupMetrics(ctx context.Context) error {
 	}
 
 	_, err := m.client.PutMetrics(ctx, &models.Metrics{
-		MetricsPath: String(path),
+		MetricsPath: new(path),
 	})
 	if err != nil {
 		return err
@@ -763,7 +792,7 @@ func (m *Machine) captureFifoToFileWithChannel(ctx context.Context, logger *log.
 	// to write its contents to a file.
 	fifoPipe, err := fifo.OpenFifo(ctx, fifoPath, syscall.O_RDONLY|syscall.O_NONBLOCK, 0600)
 	if err != nil {
-		return fmt.Errorf("Failed to open fifo path at %q: %v", fifoPath, err)
+		return fmt.Errorf("failed to open fifo path at %q: %v", fifoPath, err)
 	}
 
 	logger.Debugf("Capturing %q to writer", fifoPath)
@@ -773,6 +802,7 @@ func (m *Machine) captureFifoToFileWithChannel(ctx context.Context, logger *log.
 	// the event that the exitCh has been closed, we will close the fifo file.
 	go func() {
 		<-m.exitCh
+
 		if err := fifoPipe.Close(); err != nil {
 			logger.WithError(err).Debug("failed to close fifo")
 		}
@@ -795,6 +825,7 @@ func (m *Machine) captureFifoToFileWithChannel(ctx context.Context, logger *log.
 
 		if _, err := io.Copy(w, fifoPipe); err != nil {
 			logger.WithError(err).Warn("io.Copy failed to copy contents of fifo pipe")
+
 			done <- err
 		}
 
@@ -812,11 +843,14 @@ func (m *Machine) createMachine(ctx context.Context) error {
 	}
 
 	m.logger.Debug("PutMachineConfiguration returned")
+
 	err = m.refreshMachineConfiguration()
 	if err != nil {
 		m.logger.Errorf("Unable to inspect Firecracker MachineConfiguration. Continuing anyway. %s", err)
 	}
+
 	m.logger.Debug("createMachine returning")
+
 	return err
 }
 
@@ -850,7 +884,7 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 	ifaceCfg := models.NetworkInterface{
 		IfaceID:     &ifaceID,
 		GuestMac:    iface.StaticConfiguration.MacAddress,
-		HostDevName: String(iface.StaticConfiguration.HostDevName),
+		HostDevName: new(iface.StaticConfiguration.HostDevName),
 	}
 
 	if iface.InRateLimiter != nil {
@@ -867,6 +901,7 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 	}
 
 	m.logger.Debugf("createNetworkInterface returned for %s", iface.StaticConfiguration.HostDevName)
+
 	return err
 }
 
@@ -878,35 +913,40 @@ func (m *Machine) UpdateGuestNetworkInterfaceRateLimit(ctx context.Context, ifac
 	if rateLimiters.InRateLimiter != nil {
 		iface.RxRateLimiter = rateLimiters.InRateLimiter
 	}
+
 	if rateLimiters.OutRateLimiter != nil {
 		iface.TxRateLimiter = rateLimiters.InRateLimiter
 	}
+
 	if _, err := m.client.PatchGuestNetworkInterfaceByID(ctx, ifaceID, &iface, opts...); err != nil {
 		m.logger.Errorf("Update network interface failed: %s: %v", ifaceID, err)
 		return err
 	}
 
 	m.logger.Infof("Updated network interface: %s", ifaceID)
+
 	return nil
 }
 
 // attachDrive attaches a secondary block device
 func (m *Machine) attachDrive(ctx context.Context, dev models.Drive) error {
-	hostPath := StringValue(dev.PathOnHost)
+	hostPath := dev.PathOnHost
 	m.logger.Infof("Attaching drive %s, slot %s, root %t.", hostPath, StringValue(dev.DriveID), BoolValue(dev.IsRootDevice))
+
 	respNoContent, err := m.client.PutGuestDriveByID(ctx, StringValue(dev.DriveID), &dev)
 	if err == nil {
 		m.logger.Printf("Attached drive %s: %s", hostPath, respNoContent.Error())
 	} else {
 		m.logger.Errorf("Attach drive failed: %s: %s", hostPath, err)
 	}
+
 	return err
 }
 
 // addVsock adds a vsock to the instance
 func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
 	vsockCfg := models.Vsock{
-		GuestCid: Int64(int64(dev.CID)),
+		GuestCid: new(int64(dev.CID)),
 		UdsPath:  &dev.Path,
 		VsockID:  dev.ID,
 	}
@@ -915,7 +955,9 @@ func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
 	if err != nil {
 		return err
 	}
+
 	m.logger.Debugf("Attach vsock %s successful: %s", dev.Path, resp.Error())
+
 	return nil
 }
 
@@ -935,6 +977,7 @@ func (m *Machine) startInstance(ctx context.Context) error {
 	} else {
 		m.logger.Errorf("Starting instance: %s", err)
 	}
+
 	return err
 }
 
@@ -950,6 +993,7 @@ func (m *Machine) sendCtrlAltDel(ctx context.Context) error {
 	} else {
 		m.logger.Errorf("Unable to send CtrlAltDel: %s", err)
 	}
+
 	return err
 }
 
@@ -958,13 +1002,15 @@ func (m *Machine) setMmdsConfig(ctx context.Context, address net.IP, ifaces Netw
 	// MMDS config supports v1 and v2, v1 is going to be deprecated.
 	// Default to the version 1 if no version is specified
 	if version == MMDSv1 || version == MMDSv2 {
-		mmdsCfg.Version = String(string(version))
+		mmdsCfg.Version = new(string(version))
 	} else {
-		mmdsCfg.Version = String(string(MMDSv1))
+		mmdsCfg.Version = new(string(MMDSv1))
 	}
+
 	if address != nil {
-		mmdsCfg.IPV4Address = String(address.String())
+		mmdsCfg.IPv4Address = new(address.String())
 	}
+
 	for id, iface := range ifaces {
 		if iface.AllowMMDS {
 			mmdsCfg.NetworkInterfaces = append(mmdsCfg.NetworkInterfaces, strconv.Itoa(id+1))
@@ -977,39 +1023,43 @@ func (m *Machine) setMmdsConfig(ctx context.Context, address net.IP, ifaces Netw
 		m.logger.Infof("No interfaces are allowed to access MMDS, skipping MMDS config")
 		return nil
 	}
+
 	if _, err := m.client.PutMmdsConfig(ctx, &mmdsCfg); err != nil {
 		m.logger.Errorf("Setting mmds configuration failed: %s: %v", address, err)
 		return err
 	}
 
 	m.logger.Debug("SetMmdsConfig successful")
+
 	return nil
 }
 
 // SetMetadata sets the machine's metadata for MDDS
-func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
+func (m *Machine) SetMetadata(ctx context.Context, metadata any) error {
 	if _, err := m.client.PutMmds(ctx, metadata); err != nil {
 		m.logger.Errorf("Setting metadata: %s", err)
 		return err
 	}
 
 	m.logger.Printf("SetMetadata successful")
+
 	return nil
 }
 
 // UpdateMetadata patches the machine's metadata for MDDS
-func (m *Machine) UpdateMetadata(ctx context.Context, metadata interface{}) error {
+func (m *Machine) UpdateMetadata(ctx context.Context, metadata any) error {
 	if _, err := m.client.PatchMmds(ctx, metadata); err != nil {
 		m.logger.Errorf("Updating metadata: %s", err)
 		return err
 	}
 
 	m.logger.Printf("UpdateMetadata successful")
+
 	return nil
 }
 
 // GetMetadata gets the machine's metadata from MDDS and unmarshals it into v
-func (m *Machine) GetMetadata(ctx context.Context, v interface{}) error {
+func (m *Machine) GetMetadata(ctx context.Context, v any) error {
 	resp, err := m.client.GetMmds(ctx)
 	if err != nil {
 		m.logger.Errorf("Getting metadata: %s", err)
@@ -1028,6 +1078,7 @@ func (m *Machine) GetMetadata(ctx context.Context, v interface{}) error {
 	}
 
 	m.logger.Printf("GetMetadata successful")
+
 	return nil
 }
 
@@ -1040,11 +1091,13 @@ func (m *Machine) UpdateGuestDrive(ctx context.Context, driveID, pathOnHost stri
 	}
 
 	m.logger.Printf("PatchGuestDrive successful")
+
 	return nil
 }
 
 func (m *Machine) DescribeInstanceInfo(ctx context.Context) (models.InstanceInfo, error) {
 	var instanceInfo models.InstanceInfo
+
 	resp, err := m.client.GetInstanceInfo(ctx)
 	if err != nil {
 		m.logger.Errorf("Getting Instance Info: %s", err)
@@ -1052,11 +1105,13 @@ func (m *Machine) DescribeInstanceInfo(ctx context.Context) (models.InstanceInfo
 	}
 
 	instanceInfo = *resp.Payload
+
 	if err != nil {
 		m.logger.Errorf("Getting Instance info failed parsing payload: %s", err)
 	}
 
 	m.logger.Printf("GetInstanceInfo successful")
+
 	return instanceInfo, err
 }
 
@@ -1070,6 +1125,7 @@ func (m *Machine) refreshMachineConfiguration() error {
 
 	m.logger.Infof("refreshMachineConfiguration: %s", resp.Error())
 	m.machineConfig = *resp.Payload
+
 	return nil
 }
 
@@ -1124,7 +1180,9 @@ func (m *Machine) setupSignals() {
 			case sig := <-sigchan:
 				m.logger.Debugf("Caught signal %s", sig)
 				// Some signals kill the process, some of them are not.
-				m.cmd.Process.Signal(sig)
+				if err := m.cmd.Process.Signal(sig); err != nil {
+					m.logger.Warnf("Could not send signal %s to process: %v", sig, err)
+				}
 			case <-m.exitCh:
 				// And if a signal kills the process, we can stop this for loop and remove sigchan.
 				break ForLoop
@@ -1139,7 +1197,7 @@ func (m *Machine) setupSignals() {
 // PauseVM pauses the VM
 func (m *Machine) PauseVM(ctx context.Context, opts ...PatchVMOpt) error {
 	vm := &models.VM{
-		State: String(models.VMStatePaused),
+		State: new(models.VMStatePaused),
 	}
 
 	if _, err := m.client.PatchVM(ctx, vm, opts...); err != nil {
@@ -1148,13 +1206,14 @@ func (m *Machine) PauseVM(ctx context.Context, opts ...PatchVMOpt) error {
 	}
 
 	m.logger.Debug("VM paused successfully")
+
 	return nil
 }
 
 // ResumeVM resumes the VM
 func (m *Machine) ResumeVM(ctx context.Context, opts ...PatchVMOpt) error {
 	vm := &models.VM{
-		State: String(models.VMStateResumed),
+		State: new(models.VMStateResumed),
 	}
 
 	if _, err := m.client.PatchVM(ctx, vm, opts...); err != nil {
@@ -1163,14 +1222,15 @@ func (m *Machine) ResumeVM(ctx context.Context, opts ...PatchVMOpt) error {
 	}
 
 	m.logger.Debug("VM resumed successfully")
+
 	return nil
 }
 
 // CreateSnapshot creates a snapshot of the VM
 func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath string, opts ...CreateSnapshotOpt) error {
 	snapshotParams := &models.SnapshotCreateParams{
-		MemFilePath:  String(memFilePath),
-		SnapshotPath: String(snapshotPath),
+		MemFilePath:  new(memFilePath),
+		SnapshotPath: new(snapshotPath),
 	}
 
 	if _, err := m.client.CreateSnapshot(ctx, snapshotParams, opts...); err != nil {
@@ -1179,6 +1239,7 @@ func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath 
 	}
 
 	m.logger.Debug("snapshot created successfully")
+
 	return nil
 }
 
@@ -1197,6 +1258,7 @@ func (m *Machine) loadSnapshot(ctx context.Context, snapshot *SnapshotConfig) er
 	}
 
 	m.logger.Debug("snapshot loaded successfully")
+
 	return nil
 }
 
@@ -1207,20 +1269,22 @@ func (m *Machine) CreateBalloon(ctx context.Context, amountMib int64, deflateOnO
 		DeflateOnOom:          &deflateOnOom,
 		StatsPollingIntervals: statsPollingIntervals,
 	}
-	_, err := m.client.PutBalloon(ctx, &balloon, opts...)
 
+	_, err := m.client.PutBalloon(ctx, &balloon, opts...)
 	if err != nil {
 		m.logger.Errorf("Create balloon device failed : %s", err)
 		return err
 	}
 
 	m.logger.Debug("Created balloon device successful")
+
 	return nil
 }
 
 // GetBalloonConfig gets the current balloon device configuration.
 func (m *Machine) GetBalloonConfig(ctx context.Context) (models.Balloon, error) {
 	var balloonConfig models.Balloon
+
 	resp, err := m.client.DescribeBalloonConfig(ctx)
 	if err != nil {
 		m.logger.Errorf("Getting balloonConfig: %s", err)
@@ -1228,7 +1292,9 @@ func (m *Machine) GetBalloonConfig(ctx context.Context) (models.Balloon, error) 
 	}
 
 	balloonConfig = *resp.Payload
+
 	m.logger.Debug("GetBalloonConfig successful")
+
 	return balloonConfig, err
 }
 
@@ -1237,6 +1303,7 @@ func (m *Machine) UpdateBalloon(ctx context.Context, amountMib int64, opts ...Pa
 	ballonUpdate := models.BalloonUpdate{
 		AmountMib: &amountMib,
 	}
+
 	_, err := m.client.PatchBalloon(ctx, &ballonUpdate, opts...)
 	if err != nil {
 		m.logger.Errorf("Update balloon device failed : %s", err)
@@ -1244,19 +1311,24 @@ func (m *Machine) UpdateBalloon(ctx context.Context, amountMib int64, opts ...Pa
 	}
 
 	m.logger.Debug("Update balloon device successful")
+
 	return nil
 }
 
 // GetBalloonStats gets the latest balloon device statistics, only if enabled pre-boot.
 func (m *Machine) GetBalloonStats(ctx context.Context) (models.BalloonStats, error) {
 	var balloonStats models.BalloonStats
+
 	resp, err := m.client.DescribeBalloonStats(ctx)
 	if err != nil {
 		m.logger.Errorf("Getting balloonStats: %s", err)
 		return balloonStats, err
 	}
+
 	balloonStats = *resp.Payload
+
 	m.logger.Debug("GetBalloonStats successful")
+
 	return balloonStats, nil
 }
 
@@ -1273,5 +1345,6 @@ func (m *Machine) UpdateBalloonStats(ctx context.Context, statsPollingIntervals 
 	}
 
 	m.logger.Debug("UpdateBalloonStats successful")
+
 	return nil
 }

@@ -85,6 +85,7 @@ func envOrDefault(k, empty string) string {
 	if value == "" {
 		return empty
 	}
+
 	return value
 }
 
@@ -94,8 +95,7 @@ var fsSafeTestName = strings.NewReplacer("/", "_")
 func makeSocketPath(tb testing.TB) (string, func()) {
 	tb.Helper()
 
-	dir, err := os.MkdirTemp("", fsSafeTestName.Replace(tb.Name()))
-	require.NoError(tb, err)
+	dir := tb.TempDir()
 
 	return filepath.Join(dir, "fc.sock"), func() { os.RemoveAll(dir) }
 }
@@ -115,9 +115,9 @@ func TestNewMachine(t *testing.T) {
 		Config{
 			DisableValidation: true,
 			MachineCfg: models.MachineConfiguration{
-				VcpuCount:  Int64(1),
-				MemSizeMib: Int64(100),
-				Smt:        Bool(false),
+				VcpuCount:  new(int64(1)),
+				MemSizeMib: new(int64(100)),
+				Smt:        new(false),
 			},
 		},
 		WithLogger(fctesting.NewLogEntry(t)))
@@ -142,6 +142,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 
 	jailerUID := 123
 	jailerGID := 100
+
 	if v := os.Getenv(sudoUID); v != "" {
 		if jailerUID, err = strconv.Atoi(v); err != nil {
 			t.Fatalf("Failed to parse %q", sudoUID)
@@ -154,12 +155,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		}
 	}
 
-	// uses temp directory due to testdata's path being too long which causes a
-	// SUN_LEN error.
-	tmpDir, err := os.MkdirTemp(os.TempDir(), "jailer-test")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
-	}
+	tmpDir := t.TempDir()
 
 	vmlinuxPath := filepath.Join(tmpDir, "vmlinux")
 	if err := copyFile(filepath.Join(testDataPath, "vmlinux"), vmlinuxPath, jailerUID, jailerGID); err != nil {
@@ -171,8 +167,10 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		t.Fatalf("Failed to copy the root drive file: %v", err)
 	}
 
-	var nCpus int64 = 2
-	var memSz int64 = 256
+	var (
+		nCpus int64 = 2
+		memSz int64 = 256
+	)
 
 	// short names and directory to prevent SUN_LEN error
 	id := "b"
@@ -185,6 +183,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	capturedLog := filepath.Join(tmpDir, "writer.fifo")
 	fw, err := os.OpenFile(capturedLog, os.O_CREATE|os.O_RDWR, 0600)
 	require.NoError(t, err, "failed to open fifo writer file")
+
 	defer func() {
 		fw.Close()
 		exec.Command("cp", capturedLog, logPath).Run()
@@ -200,6 +199,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		os.O_CREATE|os.O_RDWR,
 		0666)
 	require.NoError(t, err, "failed to create log file")
+
 	defer logFd.Close()
 
 	cfg := Config{
@@ -209,23 +209,23 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		LogLevel:        "Debug",
 		KernelImagePath: vmlinuxPath,
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(nCpus),
-			MemSizeMib: Int64(memSz),
-			Smt:        Bool(false),
+			VcpuCount:  new(nCpus),
+			MemSizeMib: new(memSz),
+			Smt:        new(false),
 		},
 		Drives: []models.Drive{
 			{
-				DriveID:      String("1"),
-				IsRootDevice: Bool(true),
-				IsReadOnly:   Bool(false),
-				PathOnHost:   String(rootdrivePath),
+				DriveID:      new("1"),
+				IsRootDevice: new(true),
+				IsReadOnly:   false,
+				PathOnHost:   rootdrivePath,
 			},
 		},
 		JailerCfg: &JailerConfig{
 			JailerBinary:   getJailerBinaryPath(),
-			GID:            Int(jailerGID),
-			UID:            Int(jailerUID),
-			NumaNode:       Int(0),
+			GID:            new(jailerGID),
+			UID:            new(jailerUID),
+			NumaNode:       new(0),
 			ID:             id,
 			ChrootBaseDir:  jailerTestPath,
 			ExecFile:       getFirecrackerBinaryPath(),
@@ -258,7 +258,8 @@ func TestJailerMicroVMExecution(t *testing.T) {
 
 	for _, drive := range cfg.Drives {
 		driveImageInfo := syscall.Stat_t{}
-		drivePath := StringValue(drive.PathOnHost)
+
+		drivePath := drive.PathOnHost
 		if err := syscall.Stat(drivePath, &driveImageInfo); err != nil {
 			t.Fatalf("Failed to stat kernel image: %v", err)
 		}
@@ -272,6 +273,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	}
 
 	ctx := context.Background()
+
 	m, err := NewMachine(ctx, cfg, WithLogger(fctesting.NewLogEntry(t)))
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
@@ -287,18 +289,20 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	m.StopVMM()
 
 	info, err := os.Stat(capturedLog)
-	assert.NoError(t, err, "failed to stat captured log file")
+	require.NoError(t, err, "failed to stat captured log file")
 	assert.NotEqual(t, 0, info.Size())
 }
 
 func TestMicroVMExecution(t *testing.T) {
 	fctesting.RequiresKVM(t)
 
-	var nCpus int64 = 2
-	var memSz int64 = 256
+	var (
+		nCpus int64 = 2
+		memSz int64 = 256
+	)
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
+
 	defer os.RemoveAll(dir)
 
 	socketPath := filepath.Join(dir, "TestMicroVMExecution.sock")
@@ -307,6 +311,7 @@ func TestMicroVMExecution(t *testing.T) {
 	capturedLog := filepath.Join(dir, "writer.fifo")
 	fw, err := os.OpenFile(capturedLog, os.O_CREATE|os.O_RDWR, 0600)
 	require.NoError(t, err, "failed to open fifo writer file")
+
 	defer fw.Close()
 
 	vmlinuxPath := getVmlinuxPath(t)
@@ -324,9 +329,9 @@ func TestMicroVMExecution(t *testing.T) {
 		MetricsFifo: metricsFifo,
 		LogLevel:    "Debug",
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(nCpus),
-			MemSizeMib: Int64(memSz),
-			Smt:        Bool(false),
+			VcpuCount:  new(nCpus),
+			MemSizeMib: new(memSz),
+			Smt:        new(false),
 		},
 		DisableValidation: true,
 		NetworkInterfaces: networkIfaces,
@@ -348,29 +353,35 @@ func TestMicroVMExecution(t *testing.T) {
 
 	vmmCtx, vmmCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer vmmCancel()
+
 	exitchannel := make(chan error)
+
 	go func() {
 		err := m.startVMM(vmmCtx)
 		if err != nil {
 			exitchannel <- err
+
 			close(exitchannel)
+
 			return
 		}
 		defer m.StopVMM()
 
 		exitchannel <- m.Wait(vmmCtx)
+
 		close(exitchannel)
 	}()
 
 	deadlineCtx, deadlineCancel := context.WithTimeout(vmmCtx, 250*time.Millisecond)
 	defer deadlineCancel()
+
 	if err := waitForAliveVMM(deadlineCtx, m.client); err != nil {
 		t.Fatal(err)
 	}
 
 	t.Run("TestCreateMachine", func(t *testing.T) { testCreateMachine(ctx, t, m) })
 	t.Run("TestGetFirecrackerVersion", func(t *testing.T) { testGetFirecrackerVersion(ctx, t, m) })
-	t.Run("TestMachineConfigApplication", func(t *testing.T) { testMachineConfigApplication(ctx, t, m, cfg) })
+	t.Run("TestMachineConfigApplication", func(t *testing.T) { testMachineConfigApplication(t, m, cfg) })
 	t.Run("TestCreateBootSource", func(t *testing.T) { testCreateBootSource(ctx, t, m, vmlinuxPath) })
 	t.Run("TestCreateNetworkInterface", func(t *testing.T) { testCreateNetworkInterfaceByID(ctx, t, m) })
 	t.Run("TestAttachRootDrive", func(t *testing.T) { testAttachRootDrive(ctx, t, m) })
@@ -403,7 +414,7 @@ func TestMicroVMExecution(t *testing.T) {
 	m.Wait(vmmCtx)
 
 	info, err := os.Stat(capturedLog)
-	assert.NoError(t, err, "failed to stat captured log file")
+	require.NoError(t, err, "failed to stat captured log file")
 	assert.NotEqual(t, 0, info.Size())
 }
 
@@ -421,27 +432,29 @@ func TestStartVMM(t *testing.T) {
 		WithSocketPath(cfg.SocketPath).
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
+
 	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
 	}
 
 	m.Handlers.Validation = m.Handlers.Validation.Clear()
+
 	timeout, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer cancel()
+
 	err = m.startVMM(timeout)
 	if err != nil {
 		t.Fatalf("startVMM failed: %s", err)
 	}
 	defer m.StopVMM()
 
-	select {
-	case <-timeout.Done():
-		if timeout.Err() == context.DeadlineExceeded {
-			t.Log("firecracker ran for 250ms")
-		} else {
-			t.Errorf("startVMM returned %s", m.Wait(ctx))
-		}
+	<-timeout.Done()
+
+	if errors.Is(timeout.Err(), context.DeadlineExceeded) {
+		t.Log("firecracker ran for 250ms")
+	} else {
+		t.Errorf("startVMM returned %s", m.Wait(ctx))
 	}
 
 	// Make sure exitCh close
@@ -453,6 +466,7 @@ func TestLogAndMetrics(t *testing.T) {
 	if skipLogAndMetricsTest() {
 		t.Skip()
 	}
+
 	fctesting.RequiresKVM(t)
 
 	tests := []struct {
@@ -478,6 +492,7 @@ func TestLogAndMetrics(t *testing.T) {
 			if test.logLevel != "" {
 				logLevel = strings.ToUpper(test.logLevel)
 			}
+
 			assert.Contains(t, out, ":"+logLevel+"]")
 		})
 	}
@@ -495,14 +510,15 @@ func skipLogAndMetricsTest() bool {
 	// match version 1.4.x
 	pattern := `^1\.4\.\d+$`
 	match, _ := regexp.MatchString(pattern, version)
+
 	return !match
 }
 
 func testLogAndMetrics(t *testing.T, logLevel string) string {
 	const vmID = "UserSuppliedVMID"
 
-	dir, err := os.MkdirTemp("", strings.Replace(t.Name(), "/", "_", -1))
-	require.NoError(t, err)
+	dir := t.TempDir()
+
 	defer os.RemoveAll(dir)
 
 	socketPath := filepath.Join(dir, "fc.sock")
@@ -513,9 +529,9 @@ func testLogAndMetrics(t *testing.T, logLevel string) string {
 		DisableValidation: true,
 		KernelImagePath:   getVmlinuxPath(t),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(1),
-			MemSizeMib: Int64(64),
-			Smt:        Bool(false),
+			VcpuCount:  new(int64(1)),
+			MemSizeMib: new(int64(64)),
+			Smt:        new(false),
 		},
 		MetricsPath: filepath.Join(dir, "fc-metrics.out"),
 		LogPath:     filepath.Join(dir, "fc.log"),
@@ -531,16 +547,16 @@ func testLogAndMetrics(t *testing.T, logLevel string) string {
 
 	err = m.Start(timeout)
 	require.NoError(t, err)
+
 	defer m.StopVMM()
 
-	select {
-	case <-timeout.Done():
-		if timeout.Err() == context.DeadlineExceeded {
-			t.Log("firecracker ran for 250ms")
-			t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
-		} else {
-			t.Errorf("startVMM returned %s", m.Wait(ctx))
-		}
+	<-timeout.Done()
+
+	if errors.Is(timeout.Err(), context.DeadlineExceeded) {
+		t.Log("firecracker ran for 250ms")
+		t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(t, m) })
+	} else {
+		t.Errorf("startVMM returned %s", m.Wait(ctx))
 	}
 
 	metrics, err := os.Stat(cfg.MetricsPath)
@@ -553,6 +569,7 @@ func testLogAndMetrics(t *testing.T, logLevel string) string {
 
 	content, err := os.ReadFile(cfg.LogPath)
 	require.NoError(t, err)
+
 	return string(content)
 }
 
@@ -567,19 +584,23 @@ func TestStartVMMOnce(t *testing.T) {
 		DisableValidation: true,
 		KernelImagePath:   getVmlinuxPath(t),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(1),
-			MemSizeMib: Int64(64),
-			Smt:        Bool(false),
+			VcpuCount:  new(int64(1)),
+			MemSizeMib: new(int64(64)),
+			Smt:        new(false),
 		},
 	}
+
 	if cpu_temp, err := internal.SupportCPUTemplate(); cpu_temp && err == nil {
-		cfg.MachineCfg.CPUTemplate = models.CPUTemplate(models.CPUTemplateT2)
+		template := models.CPUTemplateT2
+		cfg.MachineCfg.CPUTemplate = &template
 	}
+
 	ctx := context.Background()
 	cmd := VMCommandBuilder{}.
 		WithSocketPath(cfg.SocketPath).
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
+
 	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -587,31 +608,32 @@ func TestStartVMMOnce(t *testing.T) {
 
 	timeout, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer cancel()
+
 	err = m.Start(timeout)
 	if err != nil {
 		t.Fatalf("startVMM failed: %s", err)
 	}
 	defer m.StopVMM()
+
 	err = m.Start(timeout)
-	assert.Error(t, err, "should return an error when Start is called multiple times")
+	require.Error(t, err, "should return an error when Start is called multiple times")
 	assert.Equal(t, ErrAlreadyStarted, err, "should be ErrAlreadyStarted")
 
-	select {
-	case <-timeout.Done():
-		if timeout.Err() == context.DeadlineExceeded {
-			t.Log("firecracker ran for 250ms")
-			t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
-		} else {
-			t.Errorf("startVMM returned %s", m.Wait(ctx))
-		}
-	}
+	<-timeout.Done()
 
+	if errors.Is(timeout.Err(), context.DeadlineExceeded) {
+		t.Log("firecracker ran for 250ms")
+		t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(t, m) })
+	} else {
+		t.Errorf("startVMM returned %s", m.Wait(ctx))
+	}
 }
 
 func getFirecrackerBinaryPath() string {
 	if val := os.Getenv(firecrackerBinaryOverrideEnv); val != "" {
 		return val
 	}
+
 	return filepath.Join(testDataPath, firecrackerBinaryPath)
 }
 
@@ -619,11 +641,13 @@ func getJailerBinaryPath() string {
 	if val := os.Getenv(jailerBinaryOverrideEnv); val != "" {
 		return val
 	}
+
 	return filepath.Join(testDataPath, defaultJailerBinary)
 }
 
 func getVmlinuxPath(t *testing.T) string {
 	t.Helper()
+
 	vmlinuxPath := filepath.Join(testDataPath, "./vmlinux")
 	if _, err := os.Stat(vmlinuxPath); err != nil {
 		t.Fatalf("Cannot find vmlinux file: %s\n"+
@@ -631,6 +655,7 @@ func getVmlinuxPath(t *testing.T) string {
 			"`%s` environment variable to the correct location.",
 			err, vmlinuxPath, testDataPathEnv)
 	}
+
 	return vmlinuxPath
 }
 
@@ -660,16 +685,17 @@ func parseVersionFromStdout(stdout []byte) (string, error) {
 
 func getFirecrackerVersion() (string, error) {
 	cmd := exec.Command(getFirecrackerBinaryPath(), "--version")
+
 	stdout, err := cmd.Output()
 	if err != nil {
 		return "", err
 	}
+
 	return parseVersionFromStdout(stdout)
 }
 
 func testGetFirecrackerVersion(ctx context.Context, t *testing.T, m *Machine) {
 	version, err := m.GetFirecrackerVersion(ctx)
-
 	if err != nil {
 		t.Errorf("GetFirecrackerVersion: %v", err)
 	}
@@ -684,7 +710,7 @@ func testGetFirecrackerVersion(ctx context.Context, t *testing.T, m *Machine) {
 		expectedVersion, version)
 }
 
-func testMachineConfigApplication(ctx context.Context, t *testing.T, m *Machine, expectedValues Config) {
+func testMachineConfigApplication(t *testing.T, m *Machine, expectedValues Config) {
 	assert.Equal(t, expectedValues.MachineCfg.VcpuCount,
 		m.machineConfig.VcpuCount, "CPU count should be equal")
 
@@ -726,6 +752,7 @@ func testCreateNetworkInterfaceByID(ctx context.Context, t *testing.T, m *Machin
 	if skipTuntap {
 		t.Skip("Skipping: tuntap tests explicitly disabled")
 	}
+
 	hostDevName := getTapName()
 	iface := NetworkInterface{
 		StaticConfiguration: &StaticNetworkConfiguration{
@@ -733,6 +760,7 @@ func testCreateNetworkInterfaceByID(ctx context.Context, t *testing.T, m *Machin
 			HostDevName: hostDevName,
 		},
 	}
+
 	err := m.createNetworkInterface(ctx, iface, 1)
 	if err != nil {
 		t.Errorf(`createNetworkInterface: %s
@@ -745,16 +773,18 @@ func getTapName() string {
 	if val := os.Getenv(tuntapOverrideEnv); val != "" {
 		return val
 	}
+
 	return defaultTuntapName
 }
 
 func testAttachRootDrive(ctx context.Context, t *testing.T, m *Machine) {
 	drive := models.Drive{
-		DriveID:      String("0"),
-		IsRootDevice: Bool(true),
-		IsReadOnly:   Bool(true),
-		PathOnHost:   String(testRootfs),
+		DriveID:      new("0"),
+		IsRootDevice: new(true),
+		IsReadOnly:   true,
+		PathOnHost:   testRootfs,
 	}
+
 	err := m.attachDrives(ctx, drive)
 	if err != nil {
 		t.Errorf("attaching root drive failed: %s", err)
@@ -763,11 +793,12 @@ func testAttachRootDrive(ctx context.Context, t *testing.T, m *Machine) {
 
 func testAttachSecondaryDrive(ctx context.Context, t *testing.T, m *Machine) {
 	drive := models.Drive{
-		DriveID:      String("2"),
-		IsRootDevice: Bool(false),
-		IsReadOnly:   Bool(true),
-		PathOnHost:   String(filepath.Join(testDataPath, "drive-2.img")),
+		DriveID:      new("2"),
+		IsRootDevice: new(false),
+		IsReadOnly:   true,
+		PathOnHost:   filepath.Join(testDataPath, "drive-2.img"),
 	}
+
 	err := m.attachDrive(ctx, drive)
 	if err != nil {
 		t.Errorf("attaching secondary drive failed: %s", err)
@@ -781,6 +812,7 @@ func testAttachVsock(ctx context.Context, t *testing.T, m *Machine) {
 		CID:  3,
 		Path: timestamp + ".vsock",
 	}
+
 	err := m.addVsock(ctx, dev)
 	if err != nil {
 		if badRequest, ok := err.(*ops.PutGuestVsockBadRequest); ok &&
@@ -809,7 +841,7 @@ Grant yourself permission with `+"`sudo setfacl -m u:${USER}:rw /dev/vhost-vsock
 	}
 }
 
-func testStopVMM(ctx context.Context, t *testing.T, m *Machine) {
+func testStopVMM(t *testing.T, m *Machine) {
 	err := m.StopVMM()
 	if err != nil {
 		t.Errorf("StopVMM failed: %s", err)
@@ -823,18 +855,20 @@ func TestStopVMMCleanup(t *testing.T) {
 	socketPath, cleanup := makeSocketPath(t)
 	defer cleanup()
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
+
 	defer os.RemoveAll(dir)
 
 	cniConfDir := filepath.Join(dir, "cni.conf")
-	err = os.MkdirAll(cniConfDir, 0777)
+	err := os.MkdirAll(cniConfDir, 0777)
 	require.NoError(t, err)
 
 	cniBinPath := []string{testDataBin}
 
-	const networkName = "fcnet"
-	const ifName = "veth0"
+	const (
+		networkName = "fcnet"
+		ifName      = "veth0"
+	)
 
 	networkMask := "/24"
 	subnet := "10.168.0.0" + networkMask
@@ -842,6 +876,7 @@ func TestStopVMMCleanup(t *testing.T) {
 	cniConfPath := fmt.Sprintf("%s/%s.conflist", cniConfDir, networkName)
 	err = writeCNIConfWithHostLocalSubnet(cniConfPath, networkName, subnet)
 	require.NoError(t, err)
+
 	defer os.Remove(cniConfPath)
 
 	networkInterface := NetworkInterface{
@@ -860,9 +895,9 @@ func TestStopVMMCleanup(t *testing.T) {
 		KernelImagePath:   getVmlinuxPath(t),
 		NetworkInterfaces: []NetworkInterface{networkInterface},
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(1),
-			MemSizeMib: Int64(64),
-			Smt:        Bool(false),
+			VcpuCount:  new(int64(1)),
+			MemSizeMib: new(int64(64)),
+			Smt:        new(false),
 		},
 	}
 	ctx := context.Background()
@@ -890,7 +925,7 @@ func testShutdown(ctx context.Context, t *testing.T, m *Machine) {
 func TestWaitForSocket(t *testing.T) {
 	okClient := fctesting.MockClient{}
 	errClient := fctesting.MockClient{
-		GetMachineConfigurationFn: func(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error) {
+		GetMachineConfigurationFn: func(params *ops.GetMachineConfigurationParams, opts ...ops.ClientOption) (*ops.GetMachineConfigurationOK, error) {
 			return nil, errors.New("http error")
 		},
 	}
@@ -903,6 +938,7 @@ func TestWaitForSocket(t *testing.T) {
 	//    (indicated by an error published to exitchan)
 	filename, cleanup := makeSocketPath(t)
 	defer cleanup()
+
 	errchan := make(chan error)
 
 	m := Machine{
@@ -912,6 +948,7 @@ func TestWaitForSocket(t *testing.T) {
 
 	go func() {
 		time.Sleep(50 * time.Millisecond)
+
 		_, err := os.Create(filename)
 		if err != nil {
 			t.Errorf("Unable to create test file %s: %s", filename, err)
@@ -927,25 +964,27 @@ func TestWaitForSocket(t *testing.T) {
 
 	// Socket file exists, HTTP request failed
 	m.client = NewClient(filename, fctesting.NewLogEntry(t), true, WithOpsClient(&errClient))
-	if err := m.waitForSocket(500*time.Millisecond, errchan); err != context.DeadlineExceeded {
+	if err := m.waitForSocket(500*time.Millisecond, errchan); !errors.Is(err, context.DeadlineExceeded) {
 		t.Error("waitforSocket did not return an expected timeout error")
 	}
 
 	cleanup()
 
 	// No socket file
-	if err := m.waitForSocket(100*time.Millisecond, errchan); err != context.DeadlineExceeded {
+	if err := m.waitForSocket(100*time.Millisecond, errchan); !errors.Is(err, context.DeadlineExceeded) {
 		t.Error("waitforSocket did not return an expected timeout error")
 	}
 
 	chanErr := errors.New("this is an expected error")
+
 	go func() {
 		time.Sleep(50 * time.Millisecond)
+
 		errchan <- chanErr
 	}()
 
 	// Unexpected process exit
-	if err := m.waitForSocket(100*time.Millisecond, errchan); err != chanErr {
+	if err := m.waitForSocket(100*time.Millisecond, errchan); !errors.Is(err, chanErr) {
 		t.Error("waitForSocket did not properly detect program exit")
 	}
 }
@@ -953,11 +992,13 @@ func TestWaitForSocket(t *testing.T) {
 func TestMicroVMExecutionWithMmdsV2(t *testing.T) {
 	fctesting.RequiresKVM(t)
 
-	var nCpus int64 = 2
-	var memSz int64 = 256
+	var (
+		nCpus int64 = 2
+		memSz int64 = 256
+	)
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
+
 	defer os.RemoveAll(dir)
 
 	socketPath := filepath.Join(dir, "TestMicroVMExecution.sock")
@@ -966,6 +1007,7 @@ func TestMicroVMExecutionWithMmdsV2(t *testing.T) {
 	capturedLog := filepath.Join(dir, "writer.fifo")
 	fw, err := os.OpenFile(capturedLog, os.O_CREATE|os.O_RDWR, 0600)
 	require.NoError(t, err, "failed to open fifo writer file")
+
 	defer fw.Close()
 
 	vmlinuxPath := getVmlinuxPath(t)
@@ -983,9 +1025,9 @@ func TestMicroVMExecutionWithMmdsV2(t *testing.T) {
 		MetricsFifo: metricsFifo,
 		LogLevel:    "Debug",
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(nCpus),
-			MemSizeMib: Int64(memSz),
-			Smt:        Bool(false),
+			VcpuCount:  new(nCpus),
+			MemSizeMib: new(memSz),
+			Smt:        new(false),
 		},
 		DisableValidation: true,
 		NetworkInterfaces: networkIfaces,
@@ -1008,22 +1050,28 @@ func TestMicroVMExecutionWithMmdsV2(t *testing.T) {
 
 	vmmCtx, vmmCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer vmmCancel()
+
 	exitchannel := make(chan error)
+
 	go func() {
 		err := m.startVMM(vmmCtx)
 		if err != nil {
 			exitchannel <- err
+
 			close(exitchannel)
+
 			return
 		}
 		defer m.StopVMM()
 
 		exitchannel <- m.Wait(vmmCtx)
+
 		close(exitchannel)
 	}()
 
 	deadlineCtx, deadlineCancel := context.WithTimeout(vmmCtx, 250*time.Millisecond)
 	defer deadlineCancel()
+
 	if err := waitForAliveVMM(deadlineCtx, m.client); err != nil {
 		t.Fatal(err)
 	}
@@ -1044,6 +1092,7 @@ func TestMicroVMExecutionWithMmdsV2(t *testing.T) {
 
 func testSetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 	metadata := map[string]string{"key": "value"}
+
 	err := m.SetMetadata(ctx, metadata)
 	if err != nil {
 		t.Errorf("failed to set metadata: %s", err)
@@ -1051,7 +1100,8 @@ func testSetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 }
 
 func testUpdateMetadata(ctx context.Context, t *testing.T, m *Machine) {
-	metadata := map[string]string{"patch_key": "patch_value"}
+	metadata := map[string]string{"patchKey": "patch_value"}
+
 	err := m.UpdateMetadata(ctx, metadata)
 	if err != nil {
 		t.Errorf("failed to set metadata: %s", err)
@@ -1061,7 +1111,7 @@ func testUpdateMetadata(ctx context.Context, t *testing.T, m *Machine) {
 func testGetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 	metadata := struct {
 		Key      string `json:"key"`
-		PatchKey string `json:"patch_key"`
+		PatchKey string `json:"patchKey"`
 	}{}
 	if err := m.GetMetadata(ctx, &metadata); err != nil {
 		t.Errorf("failed to get metadata: %s", err)
@@ -1100,17 +1150,17 @@ func TestLogFiles(t *testing.T) {
 		KernelImagePath: filepath.Join(testDataPath, "vmlinux"), SocketPath: filepath.Join(testDataPath, "socket-path"),
 		Drives: []models.Drive{
 			{
-				DriveID:      String("0"),
-				IsRootDevice: Bool(true),
-				IsReadOnly:   Bool(false),
-				PathOnHost:   String(testRootfs),
+				DriveID:      new("0"),
+				IsRootDevice: new(true),
+				IsReadOnly:   false,
+				PathOnHost:   testRootfs,
 			},
 		},
 		DisableValidation: true,
 	}
 
 	opClient := fctesting.MockClient{
-		GetMachineConfigurationFn: func(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error) {
+		GetMachineConfigurationFn: func(params *ops.GetMachineConfigurationParams, opts ...ops.ClientOption) (*ops.GetMachineConfigurationOK, error) {
 			return &ops.GetMachineConfigurationOK{
 				Payload: &models.MachineConfiguration{},
 			}, nil
@@ -1121,10 +1171,12 @@ func TestLogFiles(t *testing.T) {
 
 	stdoutPath := filepath.Join(testDataPath, "stdout.log")
 	stderrPath := filepath.Join(testDataPath, "stderr.log")
+
 	stdout, err := os.Create(stdoutPath)
 	if err != nil {
 		t.Fatalf("error creating %q: %v", stdoutPath, err)
 	}
+
 	stderr, err := os.Create(stderrPath)
 	if err != nil {
 		t.Fatalf("error creating %q: %v", stderrPath, err)
@@ -1147,6 +1199,7 @@ func TestLogFiles(t *testing.T) {
 	cmd := exec.Command("ls")
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
+
 	m, err := NewMachine(
 		ctx,
 		cfg,
@@ -1173,8 +1226,8 @@ func TestLogFiles(t *testing.T) {
 }
 
 func TestCaptureFifoToFile(t *testing.T) {
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
+
 	defer os.RemoveAll(dir)
 
 	fifoPath := filepath.Join(dir, "TestCaptureFifoToFile")
@@ -1190,12 +1243,14 @@ func TestCaptureFifoToFile(t *testing.T) {
 	}
 
 	expectedBytes := []byte("Hello world!")
+
 	f.Write(expectedBytes)
 	defer f.Close()
 
 	time.AfterFunc(250*time.Millisecond, func() { f.Close() })
 
 	logPath := fifoPath + ".log"
+
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		t.Fatalf("Failed to create log file: %v", err)
@@ -1222,16 +1277,17 @@ func TestCaptureFifoToFile(t *testing.T) {
 	defer os.Remove(logPath)
 
 	wg.Wait()
+
 	_, err = os.Stat(logPath)
-	assert.NoError(t, err, "failed to stat file")
+	require.NoError(t, err, "failed to stat file")
 	b, err := os.ReadFile(logPath)
-	assert.NoError(t, err, "failed to read logPath")
+	require.NoError(t, err, "failed to read logPath")
 	assert.Equal(t, expectedBytes, b)
 }
 
 func TestCaptureFifoToFile_nonblock(t *testing.T) {
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
+
 	defer os.RemoveAll(dir)
 
 	fifoPath := filepath.Join(dir, "TestCaptureFifoToFile_nonblock")
@@ -1242,6 +1298,7 @@ func TestCaptureFifoToFile_nonblock(t *testing.T) {
 	defer os.Remove(fifoPath)
 
 	logPath := fifoPath + ".log"
+
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		t.Fatalf("Failed to create log file: %v", err)
@@ -1278,37 +1335,44 @@ func TestCaptureFifoToFile_nonblock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open file, %q: %v", fifoPath, err)
 	}
+
 	expectedBytes := []byte("Hello world!")
+
 	f.Write(expectedBytes)
 	defer f.Close()
 
 	time.AfterFunc(250*time.Millisecond, func() { f.Close() })
 
 	wg.Wait()
+
 	_, err = os.Stat(logPath)
-	assert.NoError(t, err, "failed to stat file")
+	require.NoError(t, err, "failed to stat file")
 	b, err := os.ReadFile(logPath)
-	assert.NoError(t, err, "failed to read logPath")
+	require.NoError(t, err, "failed to read logPath")
 	assert.Equal(t, expectedBytes, b)
 }
 
 func TestSocketPathSet(t *testing.T) {
 	socketpath := "foo/bar"
+
 	m, err := NewMachine(context.Background(), Config{SocketPath: socketpath})
 	if err != nil {
 		t.Fatalf("Failed to create machine: %v", err)
 	}
 
 	found := false
+
 	for i := 0; i < len(m.cmd.Args); i++ {
 		if m.cmd.Args[i] != "--api-sock" {
 			continue
 		}
 
 		found = true
+
 		if m.cmd.Args[i+1] != socketpath {
 			t.Errorf("Incorrect socket path: %v", m.cmd.Args[i+1])
 		}
+
 		break
 	}
 
@@ -1345,6 +1409,7 @@ func TestPID(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+
 	fctesting.RequiresRoot(t)
 
 	m := &Machine{}
@@ -1352,12 +1417,15 @@ func TestPID(t *testing.T) {
 		t.Errorf("expected an error, but received none")
 	}
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
+
 	defer os.RemoveAll(dir)
 
-	var nCpus int64 = 2
-	var memSz int64 = 256
+	var (
+		nCpus int64 = 2
+		memSz int64 = 256
+	)
+
 	socketPath := filepath.Join(dir, "TestPID.sock")
 	defer os.Remove(socketPath)
 
@@ -1365,6 +1433,7 @@ func TestPID(t *testing.T) {
 
 	rootfsBytes, err := os.ReadFile(testRootfs)
 	require.NoError(t, err, "failed to read rootfs file")
+
 	rootfsPath := filepath.Join(dir, "TestPID.img")
 	err = os.WriteFile(rootfsPath, rootfsBytes, 0666)
 	require.NoError(t, err, "failed to copy vm rootfs to %s", rootfsPath)
@@ -1373,16 +1442,16 @@ func TestPID(t *testing.T) {
 		SocketPath:      socketPath,
 		KernelImagePath: vmlinuxPath,
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(nCpus),
-			MemSizeMib: Int64(memSz),
-			Smt:        Bool(false),
+			VcpuCount:  new(nCpus),
+			MemSizeMib: new(memSz),
+			Smt:        new(false),
 		},
 		Drives: []models.Drive{
 			{
-				DriveID:      String("1"),
-				IsRootDevice: Bool(true),
-				IsReadOnly:   Bool(false),
-				PathOnHost:   String(rootfsPath),
+				DriveID:      new("1"),
+				IsRootDevice: new(true),
+				IsReadOnly:   false,
+				PathOnHost:   rootfsPath,
 			},
 		},
 		DisableValidation: true,
@@ -1423,7 +1492,6 @@ func TestPID(t *testing.T) {
 	if _, err := m.PID(); err == nil {
 		t.Errorf("expected an error, but received none")
 	}
-
 }
 
 func TestCaptureFifoToFile_leak(t *testing.T) {
@@ -1431,24 +1499,27 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 		exitCh: make(chan struct{}),
 	}
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
+
 	defer os.RemoveAll(dir)
 
 	fifoPath := filepath.Join(dir, "TestCaptureFifoToFileLeak.fifo")
-	err = syscall.Mkfifo(fifoPath, 0700)
+	err := syscall.Mkfifo(fifoPath, 0700)
 	require.NoError(t, err, "failed to make fifo")
+
 	defer os.Remove(fifoPath)
 
 	fd, err := syscall.Open(fifoPath, syscall.O_RDWR|syscall.O_NONBLOCK, 0600)
 	require.NoError(t, err, "failed to open fifo path")
+
 	f := os.NewFile(uintptr(fd), fifoPath)
 	assert.NotNil(t, f, "failed to create new  file")
+
 	go func() {
 		for {
 			select {
 			case <-m.exitCh:
-				break
+				return
 			default:
 				_, err := f.Write([]byte("A"))
 				assert.NoError(t, err, "failed to write bytes to fifo")
@@ -1465,7 +1536,7 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 
 	done := make(chan error)
 	err = m.captureFifoToFileWithChannel(context.Background(), logger, fifoPath, buf, done)
-	assert.NoError(t, err, "failed to capture fifo to file")
+	require.NoError(t, err, "failed to capture fifo to file")
 
 	// Stopping the machine will close the FIFO
 	close(m.exitCh)
@@ -1473,7 +1544,7 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 	// Waiting the channel to make sure that the contents of the FIFO has been copied
 	copyErr := <-done
 
-	if copyErr == fifo.ErrReadClosed {
+	if errors.Is(copyErr, fifo.ErrReadClosed) {
 		// If the fifo package is aware about that the fifo is closed, we can get the error below.
 		assert.Contains(t, loggerBuffer.String(), fifo.ErrReadClosed.Error(), "log")
 	} else {
@@ -1537,6 +1608,7 @@ func TestWait(t *testing.T) {
 
 			// Tee logs for validation:
 			var logBuffer bytes.Buffer
+
 			machineLogger := logrus.New()
 			machineLogger.Out = io.MultiWriter(os.Stderr, &logBuffer)
 
@@ -1556,11 +1628,11 @@ func TestWait(t *testing.T) {
 			require.NoError(t, err)
 
 			var wg sync.WaitGroup
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+
+			wg.Go(func() {
+
 				c.stop(m, vmCancel)
-			}()
+			})
 
 			err = m.Wait(ctx)
 			require.Error(t, err, "Firecracker was killed and it must be reported")
@@ -1602,16 +1674,15 @@ func TestWaitWithInvalidBinary(t *testing.T) {
 	go func() {
 		err := m.Wait(ctx)
 		require.Error(t, err, "Wait() reports an error")
+
 		ch <- err
 	}()
 
 	err = m.Start(ctx)
 	require.Error(t, err, "Start() reports an error")
 
-	select {
-	case errFromWait := <-ch:
-		require.Equal(t, errFromWait, err)
-	}
+	errFromWait := <-ch
+	require.Equal(t, errFromWait, err)
 }
 
 func TestWaitWithNoSocket(t *testing.T) {
@@ -1619,6 +1690,7 @@ func TestWaitWithNoSocket(t *testing.T) {
 
 	socketPath := filepath.Join(testDataPath, t.Name())
 	defer os.Remove(socketPath)
+
 	cfg := createValidConfig(t, socketPath)
 
 	m, err := NewMachine(ctx, cfg, WithProcessRunner(exec.Command("sleep", "10")))
@@ -1629,16 +1701,15 @@ func TestWaitWithNoSocket(t *testing.T) {
 	go func() {
 		err := m.Wait(ctx)
 		require.Error(t, err, "Wait() reports an error")
+
 		ch <- err
 	}()
 
 	err = m.Start(ctx)
 	require.Error(t, err, "Start() reports an error")
 
-	select {
-	case errFromWait := <-ch:
-		require.Equal(t, errFromWait, err)
-	}
+	errFromWait := <-ch
+	require.Equal(t, errFromWait, err)
 }
 
 type machineConfigOpt func(c *Config)
@@ -1648,13 +1719,14 @@ func withRootDrive(rootfs string) machineConfigOpt {
 		var drives []models.Drive
 
 		inserted := false
+
 		for _, drive := range c.Drives {
 			if *drive.IsRootDevice {
 				drives = append(drives, models.Drive{
-					DriveID:      String("root"),
-					IsRootDevice: Bool(true),
-					IsReadOnly:   Bool(false),
-					PathOnHost:   String(rootfs),
+					DriveID:      new("root"),
+					IsRootDevice: new(true),
+					IsReadOnly:   false,
+					PathOnHost:   rootfs,
 				})
 				inserted = true
 			} else {
@@ -1664,10 +1736,10 @@ func withRootDrive(rootfs string) machineConfigOpt {
 
 		if !inserted {
 			drives = append(drives, models.Drive{
-				DriveID:      String("root"),
-				IsRootDevice: Bool(true),
-				IsReadOnly:   Bool(false),
-				PathOnHost:   String(rootfs),
+				DriveID:      new("root"),
+				IsRootDevice: new(true),
+				IsReadOnly:   false,
+				PathOnHost:   rootfs,
 			})
 		}
 
@@ -1686,16 +1758,16 @@ func createValidConfig(t *testing.T, socketPath string, opts ...machineConfigOpt
 		SocketPath:      socketPath,
 		KernelImagePath: getVmlinuxPath(t),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(2),
-			MemSizeMib: Int64(256),
-			Smt:        Bool(false),
+			VcpuCount:  new(int64(2)),
+			MemSizeMib: new(int64(256)),
+			Smt:        new(false),
 		},
 		Drives: []models.Drive{
 			{
-				DriveID:      String("root"),
-				IsRootDevice: Bool(true),
-				IsReadOnly:   Bool(true),
-				PathOnHost:   String(testRootfs),
+				DriveID:      new("root"),
+				IsRootDevice: new(true),
+				IsReadOnly:   true,
+				PathOnHost:   testRootfs,
 			},
 		},
 	}
@@ -1727,10 +1799,10 @@ func TestSignalForwarding(t *testing.T) {
 		SocketPath:      socketPath,
 		Drives: []models.Drive{
 			{
-				DriveID:      String("0"),
-				IsRootDevice: Bool(true),
-				IsReadOnly:   Bool(false),
-				PathOnHost:   String(testRootfs),
+				DriveID:      new("0"),
+				IsRootDevice: new(true),
+				IsReadOnly:   false,
+				PathOnHost:   testRootfs,
 			},
 		},
 		DisableValidation: true,
@@ -1755,7 +1827,7 @@ func TestSignalForwarding(t *testing.T) {
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	stdin, err := cmd.StdinPipe()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	m, err := NewMachine(
 		ctx,
@@ -1773,7 +1845,8 @@ func TestSignalForwarding(t *testing.T) {
 	}
 	defer m.StopVMM()
 
-	sigChan := make(chan os.Signal)
+	sigChan := make(chan os.Signal, 1)
+
 	signal.Notify(sigChan, ignoredSignals...)
 	defer func() {
 		signal.Stop(sigChan)
@@ -1802,10 +1875,12 @@ func TestSignalForwarding(t *testing.T) {
 	err = m.Wait(ctx)
 	require.NoError(t, err, "wait returned an error")
 
-	receivedSignals := []os.Signal{}
-	for _, sigStr := range strings.Split(strings.TrimSpace(stdout.String()), "\n") {
+	receivedSignals := make([]os.Signal, 0, 5)
+
+	for sigStr := range strings.SplitSeq(strings.TrimSpace(stdout.String()), "\n") {
 		i, err := strconv.Atoi(sigStr)
 		require.NoError(t, err, "expected numeric output")
+
 		receivedSignals = append(receivedSignals, syscall.Signal(i))
 	}
 
@@ -1816,8 +1891,8 @@ func TestPauseResume(t *testing.T) {
 	fctesting.RequiresKVM(t)
 	fctesting.RequiresRoot(t)
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
+
 	defer os.RemoveAll(dir)
 
 	cases := []struct {
@@ -1889,6 +1964,7 @@ func TestPauseResume(t *testing.T) {
 
 			// Tee logs for validation:
 			var logBuffer bytes.Buffer
+
 			machineLogger := logrus.New()
 			machineLogger.Out = io.MultiWriter(os.Stderr, &logBuffer)
 
@@ -1928,8 +2004,8 @@ func TestCreateSnapshot(t *testing.T) {
 	fctesting.RequiresKVM(t)
 	fctesting.RequiresRoot(t)
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
+
 	defer os.RemoveAll(dir)
 
 	cases := []struct {
@@ -1961,6 +2037,7 @@ func TestCreateSnapshot(t *testing.T) {
 
 			socketPath := filepath.Join(dir, fsSafeTestName.Replace(t.Name()))
 			snapPath := socketPath + "SnapFile"
+
 			memPath := socketPath + "MemFile"
 			defer os.Remove(socketPath)
 			defer os.Remove(snapPath)
@@ -1968,6 +2045,7 @@ func TestCreateSnapshot(t *testing.T) {
 
 			// Tee logs for validation:
 			var logBuffer bytes.Buffer
+
 			machineLogger := logrus.New()
 			machineLogger.Out = io.MultiWriter(os.Stderr, &logBuffer)
 
@@ -2021,7 +2099,7 @@ func connectToVM(m *Machine, sshKeyPath string) (*ssh.Client, error) {
 }
 
 func writeCNIConfWithHostLocalSubnet(path, networkName, subnet string) error {
-	return os.WriteFile(path, []byte(fmt.Sprintf(`{
+	return os.WriteFile(path, fmt.Appendf(nil, `{
 		"cniVersion": "0.3.1",
 		"name": "%s",
 		"plugins": [
@@ -2036,46 +2114,53 @@ func writeCNIConfWithHostLocalSubnet(path, networkName, subnet string) error {
 			"type": "tc-redirect-tap"
 		  }
 		]
-	  }`, networkName, subnet)), 0644)
+	  }`, networkName, subnet), 0644)
 }
 
 func TestLoadSnapshot(t *testing.T) {
 	fctesting.RequiresKVM(t)
 	fctesting.RequiresRoot(t)
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
+
 	defer os.RemoveAll(dir)
 
 	cniConfDir := filepath.Join(dir, "cni.conf")
-	err = os.MkdirAll(cniConfDir, 0777)
+	err := os.MkdirAll(cniConfDir, 0777)
 	require.NoError(t, err)
 
 	cniBinPath := []string{testDataBin}
 
 	rootfsBytes, err := os.ReadFile(testRootfsWithSSH)
 	require.NoError(t, err)
+
 	rootfsPath := filepath.Join(dir, "rootfs.img")
 	err = os.WriteFile(rootfsPath, rootfsBytes, 0666)
 	require.NoError(t, err)
 
 	sshKeyBytes, err := os.ReadFile(testSSHKey)
 	require.NoError(t, err)
+
 	sshKeyPath := filepath.Join(dir, "id_rsa")
 	err = os.WriteFile(sshKeyPath, sshKeyBytes, 0600)
 	require.NoError(t, err)
 
 	// Using default cache directory to ensure collision avoidance on IP allocations
-	const cniCacheDir = "/var/lib/cni"
-	const networkName = "fcnet"
-	const ifName = "veth0"
+	const (
+		cniCacheDir = "/var/lib/cni"
+		networkName = "fcnet"
+		ifName      = "veth0"
+	)
 
 	networkMask := "/24"
 	subnet := "10.168.0.0" + networkMask
+
 	var ipToRestore string
 
-	var maxRetries int = 20
-	var backoffTimeMs time.Duration = 500
+	var (
+		maxRetries                = 20
+		backoffTime time.Duration = 500
+	)
 
 	cases := []struct {
 		name           string
@@ -2114,10 +2199,10 @@ func TestLoadSnapshot(t *testing.T) {
 					SocketPath: socketPath + ".load",
 					Drives: []models.Drive{
 						{
-							DriveID:      String("root"),
-							IsRootDevice: Bool(true),
-							IsReadOnly:   Bool(true),
-							PathOnHost:   String(testRootfs),
+							DriveID:      new("root"),
+							IsRootDevice: new(true),
+							IsReadOnly:   true,
+							PathOnHost:   testRootfs,
 						},
 					},
 				}
@@ -2133,7 +2218,7 @@ func TestLoadSnapshot(t *testing.T) {
 					config.ResumeVM = true
 				}))
 				require.NoError(t, err)
-				require.Equal(t, m.Cfg.Snapshot.ResumeVM, true)
+				require.True(t, m.Cfg.Snapshot.ResumeVM)
 
 				err = m.Start(ctx)
 				require.NoError(t, err)
@@ -2174,10 +2259,10 @@ func TestLoadSnapshot(t *testing.T) {
 					SocketPath: socketPath + ".load",
 					Drives: []models.Drive{
 						{
-							DriveID:      String("root"),
-							IsRootDevice: Bool(true),
-							IsReadOnly:   Bool(true),
-							PathOnHost:   String(testRootfs),
+							DriveID:      new("root"),
+							IsRootDevice: new(true),
+							IsReadOnly:   true,
+							PathOnHost:   testRootfs,
 						},
 					},
 				}
@@ -2223,6 +2308,7 @@ func TestLoadSnapshot(t *testing.T) {
 				cniConfPath := fmt.Sprintf("%s/%s.conflist", cniConfDir, networkName)
 				err := writeCNIConfWithHostLocalSubnet(cniConfPath, networkName, subnet)
 				require.NoError(t, err)
+
 				defer os.Remove(cniConfPath)
 
 				networkInterface := NetworkInterface{
@@ -2234,18 +2320,19 @@ func TestLoadSnapshot(t *testing.T) {
 						VMIfName:    "eth0",
 					},
 				}
-				cfg := createValidConfig(t, fmt.Sprintf("%s.create", socketPath),
+				cfg := createValidConfig(t, socketPath+".create",
 					withRootDrive(rootfsPath),
 					withNetworkInterface(networkInterface),
 				)
 
-				cmd := VMCommandBuilder{}.WithSocketPath(fmt.Sprintf("%s.create", socketPath)).WithBin(getFirecrackerBinaryPath()).Build(ctx)
+				cmd := VMCommandBuilder{}.WithSocketPath(socketPath + ".create").WithBin(getFirecrackerBinaryPath()).Build(ctx)
 
 				m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
 				require.NoError(t, err)
 
 				err = m.Start(ctx)
 				require.NoError(t, err)
+
 				defer m.StopVMM()
 				defer func() {
 					if err := m.Shutdown(ctx); err != nil {
@@ -2254,21 +2341,24 @@ func TestLoadSnapshot(t *testing.T) {
 				}()
 
 				var client *ssh.Client
-				for i := 0; i < maxRetries; i++ {
+				for range maxRetries {
 					client, err = connectToVM(m, sshKeyPath)
 					if err != nil {
-						time.Sleep(backoffTimeMs * time.Millisecond)
+						time.Sleep(backoffTime * time.Millisecond)
 					} else {
 						break
 					}
 				}
+
 				require.NoError(t, err)
+
 				defer client.Close()
 
 				ipToRestore = m.Cfg.NetworkInterfaces.staticIPInterface().StaticConfiguration.IPConfiguration.IPAddr.IP.String()
 
 				session, err := client.NewSession()
 				require.NoError(t, err)
+
 				defer session.Close()
 
 				err = session.Start(`sleep 422`) // Should be asynchronous
@@ -2282,13 +2372,15 @@ func TestLoadSnapshot(t *testing.T) {
 			},
 
 			loadSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
-				var ipFreed bool = false
-				var err error
+				var (
+					ipFreed = false
+					err     error
+				)
 
-				for i := 0; i < maxRetries; i++ {
+				for range maxRetries {
 					// Wait till the file no longer exists (i.e. os.Stat returns an error)
 					if _, err = os.Stat(fmt.Sprintf("%s/networks/%s/%s", cniCacheDir, networkName, ipToRestore)); err == nil {
-						time.Sleep(backoffTimeMs * time.Millisecond)
+						time.Sleep(backoffTime * time.Millisecond)
 					} else {
 						ipFreed = true
 						break
@@ -2300,11 +2392,13 @@ func TestLoadSnapshot(t *testing.T) {
 				} else if !ipFreed {
 					err = fmt.Errorf("IP %v was not freed", ipToRestore)
 				}
+
 				require.NoError(t, err)
 
 				cniConfPath := fmt.Sprintf("%s/%s.conflist", cniConfDir, networkName)
 				err = writeCNIConfWithHostLocalSubnet(cniConfPath, networkName, subnet)
 				require.NoError(t, err)
+
 				defer os.Remove(cniConfPath)
 
 				networkInterface := NetworkInterface{
@@ -2322,10 +2416,10 @@ func TestLoadSnapshot(t *testing.T) {
 					SocketPath: socketPath + ".load",
 					Drives: []models.Drive{
 						{
-							DriveID:      String("root"),
-							IsRootDevice: Bool(true),
-							IsReadOnly:   Bool(true),
-							PathOnHost:   String(rootfsPath),
+							DriveID:      new("root"),
+							IsRootDevice: new(true),
+							IsReadOnly:   true,
+							PathOnHost:   rootfsPath,
 						},
 					},
 					NetworkInterfaces: []NetworkInterface{
@@ -2333,13 +2427,14 @@ func TestLoadSnapshot(t *testing.T) {
 					},
 				}
 
-				cmd := VMCommandBuilder{}.WithSocketPath(fmt.Sprintf("%s.load", socketPath)).WithBin(getFirecrackerBinaryPath()).Build(ctx)
+				cmd := VMCommandBuilder{}.WithSocketPath(socketPath + ".load").WithBin(getFirecrackerBinaryPath()).Build(ctx)
 
 				m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithSnapshot(memPath, snapPath))
 				require.NoError(t, err)
 
 				err = m.Start(ctx)
 				require.NoError(t, err)
+
 				defer m.StopVMM()
 
 				err = m.ResumeVM(ctx)
@@ -2347,22 +2442,26 @@ func TestLoadSnapshot(t *testing.T) {
 
 				var client *ssh.Client
 
-				for i := 0; i < maxRetries; i++ {
+				for range maxRetries {
 					client, err = connectToVM(m, sshKeyPath)
 					if err != nil {
-						time.Sleep(backoffTimeMs * time.Millisecond)
+						time.Sleep(backoffTime * time.Millisecond)
 					} else {
 						break
 					}
 				}
+
 				require.NoError(t, err)
+
 				defer client.Close()
 
 				session, err := client.NewSession()
 				require.NoError(t, err)
+
 				defer session.Close()
 
 				var b bytes.Buffer
+
 				session.Stdout = &b
 				err = session.Run(`ps -aux | grep "sleep 422" | wc -l`)
 				require.NoError(t, err)
@@ -2378,6 +2477,7 @@ func TestLoadSnapshot(t *testing.T) {
 			// Set snap and mem paths
 			socketPath := filepath.Join(dir, fsSafeTestName.Replace(t.Name()))
 			snapPath := socketPath + "SnapFile"
+
 			memPath := socketPath + "MemFile"
 			defer os.Remove(socketPath)
 			defer os.Remove(snapPath)
@@ -2385,6 +2485,7 @@ func TestLoadSnapshot(t *testing.T) {
 
 			// Tee logs for validation:
 			var logBuffer bytes.Buffer
+
 			machineLogger := logrus.New()
 			machineLogger.Out = io.MultiWriter(os.Stderr, &logBuffer)
 
@@ -2392,7 +2493,6 @@ func TestLoadSnapshot(t *testing.T) {
 			c.loadSnapshot(ctx, machineLogger, socketPath, snapPath, memPath)
 		})
 	}
-
 }
 
 func testCreateBalloon(ctx context.Context, t *testing.T, m *Machine) {
@@ -2412,6 +2512,7 @@ func testGetBalloonConfig(ctx context.Context, t *testing.T, m *Machine) {
 	if err != nil {
 		t.Errorf("failed to get config: %s", err)
 	}
+
 	assert.Equal(t, expectedBalloonConfig, balloonConfig)
 }
 

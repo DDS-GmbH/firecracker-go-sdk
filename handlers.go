@@ -15,7 +15,7 @@ package firecracker
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 )
 
@@ -86,31 +86,31 @@ var JailerConfigValidationHandler = Handler{
 		}
 
 		if !hasRoot {
-			return fmt.Errorf("A root drive must be present in the drive list")
+			return errors.New("a root drive must be present in the drive list")
 		}
 
 		if m.Cfg.JailerCfg.ChrootStrategy == nil {
-			return fmt.Errorf("ChrootStrategy cannot be nil")
+			return errors.New("chrootStrategy cannot be nil")
 		}
 
 		if len(m.Cfg.JailerCfg.ExecFile) == 0 {
-			return fmt.Errorf("exec file must be specified when using jailer mode")
+			return errors.New("exec file must be specified when using jailer mode")
 		}
 
 		if len(m.Cfg.JailerCfg.ID) == 0 {
-			return fmt.Errorf("id must be specified when using jailer mode")
+			return errors.New("id must be specified when using jailer mode")
 		}
 
 		if m.Cfg.JailerCfg.GID == nil {
-			return fmt.Errorf("GID must be specified when using jailer mode")
+			return errors.New("GID must be specified when using jailer mode")
 		}
 
 		if m.Cfg.JailerCfg.UID == nil {
-			return fmt.Errorf("UID must be specified when using jailer mode")
+			return errors.New("UID must be specified when using jailer mode")
 		}
 
 		if m.Cfg.JailerCfg.NumaNode == nil {
-			return fmt.Errorf("ID must be specified when using jailer mode")
+			return errors.New("ID must be specified when using jailer mode")
 		}
 
 		return nil
@@ -133,7 +133,7 @@ var StartVMMHandler = Handler{
 	},
 }
 
-func createFifoOrFile(ctx context.Context, m *Machine, fifo, path string) error {
+func createFifoOrFile(m *Machine, fifo, path string) error {
 	if len(fifo) > 0 {
 		if err := createFifo(fifo); err != nil {
 			return err
@@ -144,6 +144,7 @@ func createFifoOrFile(ctx context.Context, m *Machine, fifo, path string) error 
 				if err := os.Remove(fifo); !os.IsNotExist(err) {
 					return err
 				}
+
 				return nil
 			},
 		)
@@ -152,8 +153,12 @@ func createFifoOrFile(ctx context.Context, m *Machine, fifo, path string) error 
 		if err != nil {
 			return err
 		}
-		file.Close()
+
+		if err = file.Close(); err != nil {
+			return err
+		}
 	}
+
 	return nil
 }
 
@@ -161,11 +166,11 @@ func createFifoOrFile(ctx context.Context, m *Machine, fifo, path string) error 
 var CreateLogFilesHandler = Handler{
 	Name: CreateLogFilesHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		if err := createFifoOrFile(ctx, m, m.Cfg.MetricsFifo, m.Cfg.MetricsPath); err != nil {
+		if err := createFifoOrFile(m, m.Cfg.MetricsFifo, m.Cfg.MetricsPath); err != nil {
 			return err
 		}
 
-		if err := createFifoOrFile(ctx, m, m.Cfg.LogFifo, m.Cfg.LogPath); err != nil {
+		if err := createFifoOrFile(m, m.Cfg.LogFifo, m.Cfg.LogPath); err != nil {
 			return err
 		}
 
@@ -189,10 +194,13 @@ var BootstrapLoggingHandler = Handler{
 		if err := m.setupLogging(ctx); err != nil {
 			return err
 		}
+
 		if err := m.setupMetrics(ctx); err != nil {
 			return err
 		}
+
 		m.logger.Debugf("setup logging: success")
+
 		return nil
 	},
 }
@@ -248,7 +256,7 @@ var SetupNetworkHandler = Handler{
 var SetupKernelArgsHandler = Handler{
 	Name: SetupKernelArgsHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		return m.setupKernelArgs(ctx)
+		return m.setupKernelArgs()
 	},
 }
 
@@ -263,7 +271,7 @@ var AddVsocksHandler = Handler{
 
 // NewSetMetadataHandler is a named handler that puts the metadata into the
 // firecracker process.
-func NewSetMetadataHandler(metadata interface{}) Handler {
+func NewSetMetadataHandler(metadata any) Handler {
 	return Handler{
 		Name: SetMetadataHandlerName,
 		Fn: func(ctx context.Context, m *Machine) error {
@@ -283,11 +291,11 @@ var ConfigMmdsHandler = Handler{
 
 // NewCreateBalloonHandler is a named handler that put a memory balloon into the
 // firecracker process.
-func NewCreateBalloonHandler(amountMib int64, deflateOnOom bool, StatsPollingIntervals int64) Handler {
+func NewCreateBalloonHandler(amountMib int64, deflateOnOom bool, statsPollingIntervals int64) Handler {
 	return Handler{
 		Name: CreateBalloonHandlerName,
 		Fn: func(ctx context.Context, m *Machine) error {
-			return m.CreateBalloon(ctx, amountMib, deflateOnOom, StatsPollingIntervals)
+			return m.CreateBalloon(ctx, amountMib, deflateOnOom, statsPollingIntervals)
 		},
 	}
 }
@@ -388,6 +396,7 @@ func (l HandlerList) Append(handlers ...Handler) HandlerList {
 // AppendAfter will append a given handler after the specified handler.
 func (l HandlerList) AppendAfter(name string, handler Handler) HandlerList {
 	newList := HandlerList{}
+
 	for _, h := range l.list {
 		if h.Name == name {
 			newList = newList.Append(h, handler)
@@ -420,6 +429,7 @@ func (l HandlerList) Has(name string) bool {
 // Swap will replace all elements of the given name with the new handler.
 func (l HandlerList) Swap(handler Handler) HandlerList {
 	newList := HandlerList{}
+
 	for _, h := range l.list {
 		if h.Name == handler.Name {
 			newList.list = append(newList.list, handler)
@@ -446,6 +456,7 @@ func (l HandlerList) Swappend(handler Handler) HandlerList {
 // named handler being removed.
 func (l HandlerList) Remove(name string) HandlerList {
 	newList := HandlerList{}
+
 	for _, h := range l.list {
 		if h.Name != name {
 			newList.list = append(newList.list, h)
@@ -466,6 +477,7 @@ func (l HandlerList) Clear() HandlerList {
 func (l HandlerList) Run(ctx context.Context, m *Machine) error {
 	for _, handler := range l.list {
 		m.logger.Debugf("Running handler %s", handler.Name)
+
 		if err := handler.Fn(ctx, m); err != nil {
 			m.logger.Warnf("Failed handler %q: %v", handler.Name, err)
 			return err

@@ -29,5 +29,6 @@ func (cfg *SnapshotConfig) GetMemBackendPath() string {
 	if cfg.MemBackend != nil && cfg.MemBackend.BackendPath != nil {
 		return *cfg.MemBackend.BackendPath
 	}
+
 	return cfg.MemFilePath
 }

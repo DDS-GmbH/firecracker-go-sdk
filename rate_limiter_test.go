@@ -30,9 +30,9 @@ func TestRateLimiter(t *testing.T) {
 		Build()
 
 	expectedBucket := models.TokenBucket{
-		OneTimeBurst: firecracker.Int64(100),
-		RefillTime:   firecracker.Int64(3600000),
-		Size:         firecracker.Int64(100),
+		OneTimeBurst: new(int64(100)),
+		RefillTime:   new(int64(3600000)),
+		Size:         new(int64(100)),
 	}
 
 	assert.Equal(t, expectedBucket, bucket)

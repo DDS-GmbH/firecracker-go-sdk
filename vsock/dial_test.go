@@ -21,9 +21,9 @@ import (
 )
 
 func TestTemporaryNetErr(t *testing.T) {
-	assert.True(t, isTemporaryNetErr(&ackError{cause: errors.New("ack")}))
-
-	assert.False(t, isTemporaryNetErr(&connectMsgError{cause: errors.New("connect")}))
-	assert.False(t, isTemporaryNetErr(errors.New("something else")))
-	assert.False(t, isTemporaryNetErr(nil))
+	assert.False(t, isTimeoutNetErr(&ackError{cause: errors.New("ack")}))
+	assert.True(t, isTimeoutNetErr(&timeoutError{cause: errors.New("timeoutGetMetadata")}))
+	assert.False(t, isTimeoutNetErr(&connectMsgError{cause: errors.New("connect")}))
+	assert.False(t, isTimeoutNetErr(errors.New("something else")))
+	assert.False(t, isTimeoutNetErr(nil))
 }

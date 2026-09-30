@@ -49,5 +49,6 @@ func envValueOrDefaultInt(envName string, def int) int {
 	if envVal == 0 || err != nil {
 		envVal = def
 	}
+
 	return envVal
 }

@@ -15,6 +15,7 @@ package firecracker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -38,7 +39,7 @@ const (
 var (
 	// ErrMissingJailerConfig will occur when entering jailer logic but the
 	// jailer config had not been specified.
-	ErrMissingJailerConfig = fmt.Errorf("jailer config was not set for use")
+	ErrMissingJailerConfig = errors.New("jailer config was not set for use")
 )
 
 // JailerConfig is jailer specific configuration needed to execute the jailer.
@@ -137,6 +138,7 @@ func getNumaCpuset(node int) string {
 	if cpus, err := os.ReadFile(fmt.Sprintf("/sys/devices/system/node/node%d/cpulist", node)); err == nil {
 		return strings.TrimSuffix(string(cpus), "\n")
 	}
+
 	return ""
 }
 
@@ -151,7 +153,7 @@ func (b JailerCommandBuilder) Args() []string {
 
 	if cpulist := getNumaCpuset(b.node); len(cpulist) > 0 {
 		args = append(args, "--cgroup", fmt.Sprintf("cpuset.mems=%d", b.node))
-		args = append(args, "--cgroup", fmt.Sprintf("cpuset.cpus=%s", cpulist))
+		args = append(args, "--cgroup", "cpuset.cpus="+cpulist)
 	}
 
 	for _, cgroupArg := range b.cgroupArgs {
@@ -457,7 +459,7 @@ func LinkFilesHandler(kernelImageFileName string) Handler {
 
 			// copy all drives to the root fs
 			for i, drive := range m.Cfg.Drives {
-				hostPath := StringValue(drive.PathOnHost)
+				hostPath := drive.PathOnHost
 				driveFileName := filepath.Base(hostPath)
 
 				if err := os.Link(
@@ -467,7 +469,7 @@ func LinkFilesHandler(kernelImageFileName string) Handler {
 					return err
 				}
 
-				m.Cfg.Drives[i].PathOnHost = String(driveFileName)
+				m.Cfg.Drives[i].PathOnHost = driveFileName
 			}
 
 			m.Cfg.KernelImagePath = kernelImageFileName
@@ -517,7 +519,7 @@ func NewNaiveChrootStrategy(kernelImagePath string) NaiveChrootStrategy {
 
 // ErrRequiredHandlerMissing occurs when a required handler is not present in
 // the handler list.
-var ErrRequiredHandlerMissing = fmt.Errorf("required handler is missing from FcInit's list")
+var ErrRequiredHandlerMissing = errors.New("required handler is missing from FcInit's list")
 
 // AdaptHandlers will inject the LinkFilesHandler into the handler list.
 func (s NaiveChrootStrategy) AdaptHandlers(handlers *Handlers) error {

@@ -1,0 +1,20 @@
+stages:
+  - test
+
+test:
+  stage: test
+  image: golang:1.27
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - .cache/go-mod
+  before_script:
+    - export GOPATH=/go
+    - export GOPATH=${PWD}/.cache/go-mod:${GOPATH}
+    - export PATH=/go/bin:${PATH}
+    - go version
+  script:
+    - make test EXTRAGOARGS=-v
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"

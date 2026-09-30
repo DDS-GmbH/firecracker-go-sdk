@@ -98,14 +98,14 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 	vmID string,
 	netNSPath string,
 	logger *log.Entry,
-) (error, []func() error) {
+) ([]func() error, error) {
 	var cleanupFuncs []func() error
 
 	// Get the network interface with CNI configuration or, if there is none,
 	// just return right away.
 	cniNetworkInterface := networkInterfaces.cniInterface()
 	if cniNetworkInterface == nil {
-		return nil, cleanupFuncs
+		return cleanupFuncs, nil
 	}
 
 	cniNetworkInterface.CNIConfiguration.containerID = vmID
@@ -114,16 +114,18 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 
 	// Make sure the netns is setup. If the path doesn't yet exist, it will be
 	// initialized with a new empty netns.
-	err, netnsCleanupFuncs := cniNetworkInterface.CNIConfiguration.initializeNetNS()
+	netnsCleanupFuncs, err := cniNetworkInterface.CNIConfiguration.initializeNetNS()
+
 	cleanupFuncs = append(cleanupFuncs, netnsCleanupFuncs...)
 	if err != nil {
-		return fmt.Errorf("failed to initialize netns: %w", err), cleanupFuncs
+		return cleanupFuncs, fmt.Errorf("failed to initialize netns: %w", err)
 	}
 
-	cniResult, err, cniCleanupFuncs := cniNetworkInterface.CNIConfiguration.invokeCNI(ctx, logger)
+	cniResult, cniCleanupFuncs, err := cniNetworkInterface.CNIConfiguration.invokeCNI(ctx, logger)
+
 	cleanupFuncs = append(cleanupFuncs, cniCleanupFuncs...)
 	if err != nil {
-		return fmt.Errorf("failure when invoking CNI: %w", err), cleanupFuncs
+		return cleanupFuncs, fmt.Errorf("failure when invoking CNI: %w", err)
 	}
 
 	// If static configuration is not already set for the network device, fill it out
@@ -132,8 +134,8 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 	if cniNetworkInterface.StaticConfiguration == nil {
 		vmNetConf, err := vmconf.StaticNetworkConfFrom(*cniResult, cniNetworkInterface.CNIConfiguration.containerID)
 		if err != nil {
-			return fmt.Errorf("failed to parse VM network configuration from CNI output, ensure CNI is configured with a plugin "+
-				"that supports automatic VM network configuration such as tc-redirect-tap"+": %w", err), cleanupFuncs
+			return cleanupFuncs, fmt.Errorf("failed to parse VM network configuration from CNI output, ensure CNI is configured with a plugin "+
+				"that supports automatic VM network configuration such as tc-redirect-tap"+": %w", err)
 		}
 
 		cniNetworkInterface.StaticConfiguration = &StaticNetworkConfiguration{
@@ -157,7 +159,7 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 		}
 	}
 
-	return nil, cleanupFuncs
+	return cleanupFuncs, nil
 }
 
 // return the network interface that has CNI configuration, or nil if there is no such interface
@@ -317,8 +319,8 @@ func (cniConf CNIConfiguration) asCNIRuntimeConf() *libcni.RuntimeConf {
 	}
 }
 
-func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry) (*types.Result, error, []func() error) {
-	var cleanupFuncs []func() error
+func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry) (*types.Result, []func() error, error) {
+	cleanupFuncs := make([]func() error, 0, 1)
 
 	cniPlugin := libcni.NewCNIConfigWithCacheDir(cniConf.BinPath, cniConf.CacheDir, nil)
 
@@ -329,8 +331,8 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 	if networkConf == nil {
 		networkConf, err = libcni.LoadConfList(cniConf.ConfDir, cniConf.NetworkName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load CNI configuration from dir %q for network %q: %w",
-				cniConf.ConfDir, cniConf.NetworkName, err), cleanupFuncs
+			return nil, cleanupFuncs, fmt.Errorf("failed to load CNI configuration from dir %q for network %q: %w",
+				cniConf.ConfDir, cniConf.NetworkName, err)
 		}
 	}
 
@@ -341,6 +343,7 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 		if err != nil {
 			return fmt.Errorf("failed to delete CNI network list %q: %w", cniConf.NetworkName, err)
 		}
+
 		return nil
 	}
 
@@ -358,8 +361,9 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 		if !cniConf.Force {
 			// something actually went wrong deleting the network, return an error and Force wasn't used so we don't
 			// try to create a new network on top of a possibly half-deleted previous one.
-			return nil, fmt.Errorf(errMsg+": %w", err), cleanupFuncs
+			return nil, cleanupFuncs, fmt.Errorf(errMsg+": %w", err)
 		}
+
 		logger.Error(err, errMsg)
 	}
 
@@ -367,43 +371,45 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 	// case where AddNetworkList fails but leaves intermediate resources around like
 	// devices and ip allocations.
 	cleanupFuncs = append(cleanupFuncs, delNetworkFunc)
+
 	cniResult, err := cniPlugin.AddNetworkList(ctx, networkConf, runtimeConf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create CNI network: %w", err), cleanupFuncs
+		return nil, cleanupFuncs, fmt.Errorf("failed to create CNI network: %w", err)
 	}
 
-	return &cniResult, nil, cleanupFuncs
+	return &cniResult, cleanupFuncs, nil
 }
 
 // initializeNetNS checks to see if the netNSPath already exists, if it doesn't it will create
 // a new one mounted at that path.
-func (cniConf CNIConfiguration) initializeNetNS() (error, []func() error) {
+func (cniConf CNIConfiguration) initializeNetNS() ([]func() error, error) {
 	var cleanupFuncs []func() error
 
 	err := ns.IsNSorErr(cniConf.netNSPath)
 	switch err.(type) {
 	case nil:
 		// if the path already exists and is a netns, just use it as is and return early
-		return nil, cleanupFuncs
+		return cleanupFuncs, nil
 	case ns.NSPathNotNSErr:
 		// if the path exists but isn't a netns, return an error
-		return fmt.Errorf("path %q does not appear to be a mounted netns: %w", cniConf.netNSPath, err), cleanupFuncs
+		return cleanupFuncs, fmt.Errorf("path %q does not appear to be a mounted netns: %w", cniConf.netNSPath, err)
 	case ns.NSPathNotExistErr:
 		// if the path doesn't exist, continue on to creating a new netns at the path
 	default:
 		// if something else bad happened return the error
-		return fmt.Errorf("failure checking if %q is a mounted netns: %w", cniConf.netNSPath, err), cleanupFuncs
+		return cleanupFuncs, fmt.Errorf("failure checking if %q is a mounted netns: %w", cniConf.netNSPath, err)
 	}
 
 	// the path doesn't exist, so we need to create a new netns and mount it at the path
 
 	// make sure the parent directory for the path exists
 	parentDir := filepath.Dir(cniConf.netNSPath)
+
 	_, err = os.Stat(parentDir)
 	if os.IsNotExist(err) {
 		err = os.MkdirAll(parentDir, 0600)
 		if err != nil {
-			return fmt.Errorf("failed to create netns parent dir at %q: %w", parentDir, err), cleanupFuncs
+			return cleanupFuncs, fmt.Errorf("failed to create netns parent dir at %q: %w", parentDir, err)
 		}
 
 		cleanupFuncs = append(cleanupFuncs, func() error {
@@ -414,24 +420,29 @@ func (cniConf CNIConfiguration) initializeNetNS() (error, []func() error) {
 			if err != nil {
 				return fmt.Errorf("failed to remove netns parent dir %q: %w", parentDir, err)
 			}
+
 			return nil
 		})
 	} else if err != nil {
-		return fmt.Errorf("failed to check if netns parent dir exists at %q: %w", parentDir, err), cleanupFuncs
+		return cleanupFuncs, fmt.Errorf("failed to check if netns parent dir exists at %q: %w", parentDir, err)
 	}
 
 	// We need a file to exist at the path in order for the bind mount to succeed.
 	fd, err := os.OpenFile(cniConf.netNSPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
-		return fmt.Errorf("failed to open new netns path at %q: %w", cniConf.netNSPath, err), cleanupFuncs
+		return cleanupFuncs, fmt.Errorf("failed to open new netns path at %q: %w", cniConf.netNSPath, err)
 	}
-	fd.Close()
+
+	if err = fd.Close(); err != nil {
+		return cleanupFuncs, fmt.Errorf("failed close file descriptor at %q: %w", cniConf.netNSPath, err)
+	}
 
 	cleanupFuncs = append(cleanupFuncs, func() error {
 		err := os.Remove(cniConf.netNSPath)
 		if err != nil {
 			return fmt.Errorf("failed to remove netns path %q: %w", cniConf.netNSPath, err)
 		}
+
 		return nil
 	})
 
@@ -464,12 +475,14 @@ func (cniConf CNIConfiguration) initializeNetNS() (error, []func() error) {
 			if err != nil {
 				return fmt.Errorf("failed to unmount netns at %q: %w", cniConf.netNSPath, err)
 			}
+
 			return nil
 		})
 	}()
 
 	err = <-doneCh
-	return err, cleanupFuncs
+
+	return cleanupFuncs, err
 }
 
 // StaticNetworkConfiguration allows a network interface to be defined via static parameters

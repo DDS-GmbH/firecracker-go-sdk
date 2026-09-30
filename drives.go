@@ -41,10 +41,10 @@ type DriveOpt func(*models.Drive)
 // drive will be set to read and write by default.
 func (b DrivesBuilder) WithRootDrive(rootDrivePath string, opts ...DriveOpt) DrivesBuilder {
 	b.rootDrive = models.Drive{
-		DriveID:      String(rootDriveName),
-		PathOnHost:   &rootDrivePath,
-		IsRootDevice: Bool(true),
-		IsReadOnly:   Bool(false),
+		DriveID:      new(rootDriveName),
+		PathOnHost:   rootDrivePath,
+		IsRootDevice: new(true),
+		IsReadOnly:   false,
 	}
 
 	for _, opt := range opts {
@@ -57,10 +57,10 @@ func (b DrivesBuilder) WithRootDrive(rootDrivePath string, opts ...DriveOpt) Dri
 // AddDrive will add a new drive to the given builder.
 func (b DrivesBuilder) AddDrive(path string, readOnly bool, opts ...DriveOpt) DrivesBuilder {
 	drive := models.Drive{
-		DriveID:      String(strconv.Itoa(len(b.drives))),
-		PathOnHost:   &path,
-		IsRootDevice: Bool(false),
-		IsReadOnly:   &readOnly,
+		DriveID:      new(strconv.Itoa(len(b.drives))),
+		PathOnHost:   path,
+		IsRootDevice: new(false),
+		IsReadOnly:   readOnly,
 	}
 
 	for _, opt := range opts {
@@ -68,6 +68,7 @@ func (b DrivesBuilder) AddDrive(path string, readOnly bool, opts ...DriveOpt) Dr
 	}
 
 	b.drives = append(b.drives, drive)
+
 	return b
 }
 
@@ -79,14 +80,14 @@ func (b DrivesBuilder) Build() []models.Drive {
 // WithDriveID sets the ID of the drive
 func WithDriveID(id string) DriveOpt {
 	return func(d *models.Drive) {
-		d.DriveID = String(id)
+		d.DriveID = new(id)
 	}
 }
 
 // WithReadOnly sets the drive read-only
 func WithReadOnly(flag bool) DriveOpt {
 	return func(d *models.Drive) {
-		d.IsReadOnly = Bool(flag)
+		d.IsReadOnly = flag
 	}
 }
 
@@ -107,7 +108,7 @@ func WithRateLimiter(limiter models.RateLimiter) DriveOpt {
 // WithCacheType sets the cache strategy for the block device
 func WithCacheType(cacheType string) DriveOpt {
 	return func(d *models.Drive) {
-		d.CacheType = String(cacheType)
+		d.CacheType = new(cacheType)
 	}
 }
 
@@ -116,6 +117,6 @@ func WithCacheType(cacheType string) DriveOpt {
 // https://github.com/firecracker-microvm/firecracker/blob/v1.1.0/docs/api_requests/block-io-engine.md
 func WithIoEngine(ioEngine string) DriveOpt {
 	return func(d *models.Drive) {
-		d.IoEngine = String(ioEngine)
+		d.IoEngine = new(ioEngine)
 	}
 }
