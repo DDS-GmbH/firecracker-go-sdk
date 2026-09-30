@@ -1,3 +1,6 @@
+# 1.1.1
+* Fix ack message reading not being retried
+
 # 1.1.0
 * Update for firecracker 1.17.0
 

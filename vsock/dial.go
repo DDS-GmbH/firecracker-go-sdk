@@ -183,7 +183,7 @@ func tryConnect(logger *logrus.Entry, udsPath string, port uint32, c config) (ne
 
 	line, err := tryConnReadUntil(conn, '\n', c.AckMsgTimeout)
 	if err != nil {
-		return nil, ackError{
+		return nil, ackTimeoutError{
 			cause: fmt.Errorf(`failed to read "OK <port>" within %s: %w`, c.AckMsgTimeout, err),
 		}
 	}
@@ -191,7 +191,7 @@ func tryConnect(logger *logrus.Entry, udsPath string, port uint32, c config) (ne
 	// The line would be "OK <assigned_hostside_port>\n", but we don't use the hostside port here.
 	// https://github.com/firecracker-microvm/firecracker/blob/main/docs/vsock.md#host-initiated-connections
 	if !strings.HasPrefix(line, "OK ") {
-		return nil, ackError{
+		return nil, ackMsgError{
 			cause: fmt.Errorf(`expected to read "OK <port>", but instead read %q`, line),
 		}
 	}
@@ -254,27 +254,31 @@ func (e connectMsgError) Error() string {
 	return fmt.Errorf("vsock connect message failure: %w", e.cause).Error()
 }
 
-func (e connectMsgError) Temporary() bool {
-	return false
-}
-
 func (e connectMsgError) Timeout() bool {
 	return false
 }
 
-type ackError struct {
+type ackMsgError struct {
 	cause error
 }
 
-func (e ackError) Error() string {
-	return fmt.Errorf("vsock ack message failure: %w", e.cause).Error()
+type ackTimeoutError struct {
+	cause error
 }
 
-func (e ackError) Temporary() bool {
+func (e ackTimeoutError) Error() string {
+	return fmt.Errorf("vsock ack timeout failure: %w", e.cause).Error()
+}
+
+func (e ackTimeoutError) Timeout() bool {
 	return true
 }
 
-func (e ackError) Timeout() bool {
+func (e ackMsgError) Error() string {
+	return fmt.Errorf("vsock ack message failure: %w", e.cause).Error()
+}
+
+func (e ackMsgError) Timeout() bool {
 	return false
 }
 
@@ -284,10 +288,6 @@ type timeoutError struct {
 
 func (e timeoutError) Error() string {
 	return fmt.Errorf("vsock timeout failure: %w", e.cause).Error()
-}
-
-func (e timeoutError) Temporary() bool {
-	return true
 }
 
 func (e timeoutError) Timeout() bool {
