@@ -86,11 +86,11 @@ var JailerConfigValidationHandler = Handler{
 		}
 
 		if !hasRoot {
-			return errors.New("A root drive must be present in the drive list")
+			return errors.New("a root drive must be present in the drive list")
 		}
 
 		if m.Cfg.JailerCfg.ChrootStrategy == nil {
-			return errors.New("ChrootStrategy cannot be nil")
+			return errors.New("chrootStrategy cannot be nil")
 		}
 
 		if len(m.Cfg.JailerCfg.ExecFile) == 0 {
@@ -133,7 +133,7 @@ var StartVMMHandler = Handler{
 	},
 }
 
-func createFifoOrFile(ctx context.Context, m *Machine, fifo, path string) error {
+func createFifoOrFile(m *Machine, fifo, path string) error {
 	if len(fifo) > 0 {
 		if err := createFifo(fifo); err != nil {
 			return err
@@ -154,7 +154,9 @@ func createFifoOrFile(ctx context.Context, m *Machine, fifo, path string) error 
 			return err
 		}
 
-		file.Close()
+		if err = file.Close(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -164,11 +166,11 @@ func createFifoOrFile(ctx context.Context, m *Machine, fifo, path string) error 
 var CreateLogFilesHandler = Handler{
 	Name: CreateLogFilesHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		if err := createFifoOrFile(ctx, m, m.Cfg.MetricsFifo, m.Cfg.MetricsPath); err != nil {
+		if err := createFifoOrFile(m, m.Cfg.MetricsFifo, m.Cfg.MetricsPath); err != nil {
 			return err
 		}
 
-		if err := createFifoOrFile(ctx, m, m.Cfg.LogFifo, m.Cfg.LogPath); err != nil {
+		if err := createFifoOrFile(m, m.Cfg.LogFifo, m.Cfg.LogPath); err != nil {
 			return err
 		}
 
@@ -254,7 +256,7 @@ var SetupNetworkHandler = Handler{
 var SetupKernelArgsHandler = Handler{
 	Name: SetupKernelArgsHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		return m.setupKernelArgs(ctx)
+		return m.setupKernelArgs()
 	},
 }
 
@@ -269,7 +271,7 @@ var AddVsocksHandler = Handler{
 
 // NewSetMetadataHandler is a named handler that puts the metadata into the
 // firecracker process.
-func NewSetMetadataHandler(metadata interface{}) Handler {
+func NewSetMetadataHandler(metadata any) Handler {
 	return Handler{
 		Name: SetMetadataHandlerName,
 		Fn: func(ctx context.Context, m *Machine) error {
@@ -289,11 +291,11 @@ var ConfigMmdsHandler = Handler{
 
 // NewCreateBalloonHandler is a named handler that put a memory balloon into the
 // firecracker process.
-func NewCreateBalloonHandler(amountMib int64, deflateOnOom bool, StatsPollingIntervals int64) Handler {
+func NewCreateBalloonHandler(amountMib int64, deflateOnOom bool, statsPollingIntervals int64) Handler {
 	return Handler{
 		Name: CreateBalloonHandlerName,
 		Fn: func(ctx context.Context, m *Machine) error {
-			return m.CreateBalloon(ctx, amountMib, deflateOnOom, StatsPollingIntervals)
+			return m.CreateBalloon(ctx, amountMib, deflateOnOom, statsPollingIntervals)
 		},
 	}
 }

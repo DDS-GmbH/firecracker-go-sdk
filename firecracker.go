@@ -83,13 +83,12 @@ type GetFirecrackerVersionOpt func(*ops.GetFirecrackerVersionParams)
 // calling of the API easier.
 func (f *Client) GetFirecrackerVersion(ctx context.Context, opts ...GetFirecrackerVersionOpt) (*ops.GetFirecrackerVersionOK, error) {
 	params := ops.NewGetFirecrackerVersionParams()
-	params.SetContext(ctx)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.GetFirecrackerVersion(params)
+	return f.client.Operations.GetFirecrackerVersionContext(ctx, params)
 }
 
 // PutLoggerOpt is a functional option to be used for the PutLogger API in
@@ -102,14 +101,14 @@ func (f *Client) PutLogger(ctx context.Context, logger *models.Logger, opts ...P
 	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
-	loggerParams := ops.NewPutLoggerParamsWithContext(timeout)
+	loggerParams := ops.NewPutLoggerParams()
 	loggerParams.SetBody(logger)
 
 	for _, opt := range opts {
 		opt(loggerParams)
 	}
 
-	return f.client.Operations.PutLogger(loggerParams)
+	return f.client.Operations.PutLoggerContext(timeout, loggerParams)
 }
 
 // PutMetricsOpt is a functional option to be used for the PutMetrics API in
@@ -122,14 +121,14 @@ func (f *Client) PutMetrics(ctx context.Context, metrics *models.Metrics, opts .
 	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
-	params := ops.NewPutMetricsParamsWithContext(timeout)
+	params := ops.NewPutMetricsParams()
 	params.SetBody(metrics)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.PutMetrics(params)
+	return f.client.Operations.PutMetricsContext(timeout, params)
 }
 
 // PutMachineConfigurationOpt is a functional option to be used for the
@@ -142,14 +141,14 @@ func (f *Client) PutMachineConfiguration(ctx context.Context, cfg *models.Machin
 	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
-	mc := ops.NewPutMachineConfigurationParamsWithContext(timeout)
+	mc := ops.NewPutMachineConfigurationParams()
 	mc.SetBody(cfg)
 
 	for _, opt := range opts {
 		opt(mc)
 	}
 
-	return f.client.Operations.PutMachineConfiguration(mc)
+	return f.client.Operations.PutMachineConfigurationContext(timeout, mc)
 }
 
 // PutGuestBootSourceOpt is a functional option to be used for the
@@ -162,14 +161,14 @@ func (f *Client) PutGuestBootSource(ctx context.Context, source *models.BootSour
 	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
-	bootSource := ops.NewPutGuestBootSourceParamsWithContext(timeout)
+	bootSource := ops.NewPutGuestBootSourceParams()
 	bootSource.SetBody(source)
 
 	for _, opt := range opts {
 		opt(bootSource)
 	}
 
-	return f.client.Operations.PutGuestBootSource(bootSource)
+	return f.client.Operations.PutGuestBootSourceContext(timeout, bootSource)
 }
 
 // PutGuestNetworkInterfaceByIDOpt is a functional option to be used for the
@@ -182,7 +181,7 @@ func (f *Client) PutGuestNetworkInterfaceByID(ctx context.Context, ifaceID strin
 	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
-	cfg := ops.NewPutGuestNetworkInterfaceByIDParamsWithContext(timeout)
+	cfg := ops.NewPutGuestNetworkInterfaceByIDParams()
 	cfg.SetBody(ifaceCfg)
 	cfg.SetIfaceID(ifaceID)
 
@@ -190,7 +189,7 @@ func (f *Client) PutGuestNetworkInterfaceByID(ctx context.Context, ifaceID strin
 		opt(cfg)
 	}
 
-	return f.client.Operations.PutGuestNetworkInterfaceByID(cfg)
+	return f.client.Operations.PutGuestNetworkInterfaceByIDContext(timeout, cfg)
 }
 
 // PatchGuestNetworkInterfaceByIDOpt is a functional option to be used for the
@@ -203,7 +202,7 @@ func (f *Client) PatchGuestNetworkInterfaceByID(ctx context.Context, ifaceID str
 	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
-	cfg := ops.NewPatchGuestNetworkInterfaceByIDParamsWithContext(timeout)
+	cfg := ops.NewPatchGuestNetworkInterfaceByIDParams()
 	cfg.SetBody(ifaceCfg)
 	cfg.SetIfaceID(ifaceID)
 
@@ -211,7 +210,7 @@ func (f *Client) PatchGuestNetworkInterfaceByID(ctx context.Context, ifaceID str
 		opt(cfg)
 	}
 
-	return f.client.Operations.PatchGuestNetworkInterfaceByID(cfg)
+	return f.client.Operations.PatchGuestNetworkInterfaceByIDContext(timeout, cfg)
 }
 
 // PutGuestDriveByIDOpt is a functional option to be used for the
@@ -224,7 +223,7 @@ func (f *Client) PutGuestDriveByID(ctx context.Context, driveID string, drive *m
 	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)/2*time.Millisecond)
 	defer cancel()
 
-	params := ops.NewPutGuestDriveByIDParamsWithContext(timeout)
+	params := ops.NewPutGuestDriveByIDParams()
 	params.SetDriveID(driveID)
 	params.SetBody(drive)
 
@@ -232,7 +231,7 @@ func (f *Client) PutGuestDriveByID(ctx context.Context, driveID string, drive *m
 		opt(params)
 	}
 
-	return f.client.Operations.PutGuestDriveByID(params)
+	return f.client.Operations.PutGuestDriveByIDContext(timeout, params)
 }
 
 // PutGuestVsockOpt is a functional option to be used for the
@@ -243,14 +242,13 @@ type PutGuestVsockOpt func(params *ops.PutGuestVsockParams)
 // calling of the API easier.
 func (f *Client) PutGuestVsock(ctx context.Context, vsock *models.Vsock, opts ...PutGuestVsockOpt) (*ops.PutGuestVsockNoContent, error) {
 	params := ops.NewPutGuestVsockParams()
-	params.SetContext(ctx)
 	params.SetBody(vsock)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.PutGuestVsock(params)
+	return f.client.Operations.PutGuestVsockContext(ctx, params)
 }
 
 // PatchVMOpt is a functional option to be used for the
@@ -263,14 +261,14 @@ func (f *Client) PatchVM(ctx context.Context, vm *models.VM, opts ...PatchVMOpt)
 	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
-	params := ops.NewPatchVMParamsWithContext(timeout)
+	params := ops.NewPatchVMParams()
 	params.SetBody(vm)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.PatchVM(params)
+	return f.client.Operations.PatchVMContext(timeout, params)
 }
 
 // CreateSnapshotOpt is a functional option to be used for the
@@ -280,14 +278,14 @@ type CreateSnapshotOpt func(*ops.CreateSnapshotParams)
 // CreateSnapshot is a wrapper for the swagger generated client to make
 // calling of the API easier.
 func (f *Client) CreateSnapshot(ctx context.Context, snapshotParams *models.SnapshotCreateParams, opts ...CreateSnapshotOpt) (*ops.CreateSnapshotNoContent, error) {
-	params := ops.NewCreateSnapshotParamsWithContext(ctx)
+	params := ops.NewCreateSnapshotParams()
 	params.SetBody(snapshotParams)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.CreateSnapshot(params)
+	return f.client.Operations.CreateSnapshotContext(ctx, params)
 }
 
 // LoadSnapshotOpt is a functional option to be used for the
@@ -297,14 +295,14 @@ type LoadSnapshotOpt func(*ops.LoadSnapshotParams)
 // LoadSnapshot is a wrapper for the swagger generated client to make
 // calling of the API easier.
 func (f *Client) LoadSnapshot(ctx context.Context, snapshotParams *models.SnapshotLoadParams, opts ...LoadSnapshotOpt) (*ops.LoadSnapshotNoContent, error) {
-	params := ops.NewLoadSnapshotParamsWithContext(ctx)
+	params := ops.NewLoadSnapshotParams()
 	params.SetBody(snapshotParams)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.LoadSnapshot(params)
+	return f.client.Operations.LoadSnapshotContext(ctx, params)
 }
 
 // CreateSyncActionOpt is a functional option to be used for the
@@ -315,14 +313,13 @@ type CreateSyncActionOpt func(*ops.CreateSyncActionParams)
 // calling of the API easier.
 func (f *Client) CreateSyncAction(ctx context.Context, info *models.InstanceActionInfo, opts ...CreateSyncActionOpt) (*ops.CreateSyncActionNoContent, error) {
 	params := ops.NewCreateSyncActionParams()
-	params.SetContext(ctx)
 	params.SetInfo(info)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.CreateSyncAction(params)
+	return f.client.Operations.CreateSyncActionContext(ctx, params)
 }
 
 // PutMmdsOpt is a functional option to be used for the PutMmds API in setting
@@ -331,16 +328,15 @@ type PutMmdsOpt func(*ops.PutMmdsParams)
 
 // PutMmds is a wrapper for the swagger generated client to make calling of the
 // API easier.
-func (f *Client) PutMmds(ctx context.Context, metadata interface{}, opts ...PutMmdsOpt) (*ops.PutMmdsNoContent, error) {
+func (f *Client) PutMmds(ctx context.Context, metadata any, opts ...PutMmdsOpt) (*ops.PutMmdsNoContent, error) {
 	params := ops.NewPutMmdsParams()
-	params.SetContext(ctx)
 	params.SetBody(metadata)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.PutMmds(params)
+	return f.client.Operations.PutMmdsContext(ctx, params)
 }
 
 // GetMmdsOpt is a functional option to be used for the GetMmds API in setting
@@ -351,13 +347,12 @@ type GetMmdsOpt func(*ops.GetMmdsParams)
 // API easier.
 func (f *Client) GetMmds(ctx context.Context, opts ...GetMmdsOpt) (*ops.GetMmdsOK, error) {
 	params := ops.NewGetMmdsParams()
-	params.SetContext(ctx)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.GetMmds(params)
+	return f.client.Operations.GetMmdsContext(ctx, params)
 }
 
 // PatchMmdsOpt is a functional option to be used for the GetMmds API in setting
@@ -366,26 +361,24 @@ type PatchMmdsOpt func(*ops.PatchMmdsParams)
 
 // PatchMmds is a wrapper for the swagger generated client to make calling of the
 // API easier.
-func (f *Client) PatchMmds(ctx context.Context, metadata interface{}, opts ...PatchMmdsOpt) (*ops.PatchMmdsNoContent, error) {
+func (f *Client) PatchMmds(ctx context.Context, metadata any, opts ...PatchMmdsOpt) (*ops.PatchMmdsNoContent, error) {
 	params := ops.NewPatchMmdsParams()
-	params.SetContext(ctx)
 	params.SetBody(metadata)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.PatchMmds(params)
+	return f.client.Operations.PatchMmdsContext(ctx, params)
 }
 
 // PutMmdsConfig is a wrapper for the swagger generated client to make calling of the
 // API easier.
 func (f *Client) PutMmdsConfig(ctx context.Context, config *models.MmdsConfig) (*ops.PutMmdsConfigNoContent, error) {
 	params := ops.NewPutMmdsConfigParams()
-	params.SetContext(ctx)
 	params.SetBody(config)
 
-	return f.client.Operations.PutMmdsConfig(params)
+	return f.client.Operations.PutMmdsConfigContext(ctx, params)
 }
 
 // GetMachineConfigurationOpt  is a functional option to be used for the
@@ -413,13 +406,12 @@ type DescribeInstanceOpt func(*ops.DescribeInstanceParams)
 // the API easier
 func (f *Client) GetInstanceInfo(ctx context.Context, opts ...DescribeInstanceOpt) (*ops.DescribeInstanceOK, error) {
 	params := ops.NewDescribeInstanceParams()
-	params.SetContext(ctx)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.DescribeInstance(params)
+	return f.client.Operations.DescribeInstanceContext(ctx, params)
 }
 
 // PatchGuestDriveByIDOpt is a functional option to be used for the PutMmds API in setting
@@ -430,7 +422,6 @@ type PatchGuestDriveByIDOpt func(*ops.PatchGuestDriveByIDParams)
 // API easier.
 func (f *Client) PatchGuestDriveByID(ctx context.Context, driveID, pathOnHost string, opts ...PatchGuestDriveByIDOpt) (*ops.PatchGuestDriveByIDNoContent, error) {
 	params := ops.NewPatchGuestDriveByIDParams()
-	params.SetContext(ctx)
 
 	partialDrive := models.PartialDrive{
 		DriveID:    &driveID,
@@ -443,7 +434,7 @@ func (f *Client) PatchGuestDriveByID(ctx context.Context, driveID, pathOnHost st
 		opt(params)
 	}
 
-	return f.client.Operations.PatchGuestDriveByID(params)
+	return f.client.Operations.PatchGuestDriveByIDContext(ctx, params)
 }
 
 // PutBalloonOpt is a functional option to be used for the
@@ -456,24 +447,23 @@ func (f *Client) PutBalloon(ctx context.Context, balloon *models.Balloon, opts .
 	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
-	params := ops.NewPutBalloonParamsWithContext(timeout)
+	params := ops.NewPutBalloonParams()
 	params.SetBody(balloon)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.PutBalloon(params)
+	return f.client.Operations.PutBalloonContext(timeout, params)
 }
 
 // DescribeBalloonConfig is a wrapper for the swagger generated client to make
 // calling of the API easier.
 func (f *Client) DescribeBalloonConfig(ctx context.Context) (*ops.DescribeBalloonConfigOK, error) {
 	params := ops.NewDescribeBalloonConfigParams()
-	params.SetContext(ctx)
 	params.SetTimeout(time.Duration(f.firecrackerRequestTimeout) * time.Millisecond)
 
-	return f.client.Operations.DescribeBalloonConfig(params)
+	return f.client.Operations.DescribeBalloonConfigContext(ctx, params)
 }
 
 // PatchBalloonOpt is a functional option to be used for the PatchBalloon API in setting
@@ -486,24 +476,23 @@ func (f *Client) PatchBalloon(ctx context.Context, ballonUpdate *models.BalloonU
 	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
-	params := ops.NewPatchBalloonParamsWithContext(timeout)
+	params := ops.NewPatchBalloonParams()
 	params.SetBody(ballonUpdate)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.PatchBalloon(params)
+	return f.client.Operations.PatchBalloonContext(timeout, params)
 }
 
 // DescribeBalloonStats is a wrapper for the swagger generated client to make calling of the
 // API easier.
 func (f *Client) DescribeBalloonStats(ctx context.Context) (*ops.DescribeBalloonStatsOK, error) {
 	params := ops.NewDescribeBalloonStatsParams()
-	params.SetContext(ctx)
 	params.SetTimeout(time.Duration(f.firecrackerRequestTimeout) * time.Millisecond)
 
-	return f.client.Operations.DescribeBalloonStats(params)
+	return f.client.Operations.DescribeBalloonStatsContext(ctx, params)
 }
 
 // PatchBalloonStatsIntervalOpt is a functional option to be used for the PatchBalloonStatsInterval API in setting
@@ -516,14 +505,14 @@ func (f *Client) PatchBalloonStatsInterval(ctx context.Context, balloonStatsUpda
 	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
-	params := ops.NewPatchBalloonStatsIntervalParamsWithContext(timeout)
+	params := ops.NewPatchBalloonStatsIntervalParams()
 	params.SetBody(balloonStatsUpdate)
 
 	for _, opt := range opts {
 		opt(params)
 	}
 
-	return f.client.Operations.PatchBalloonStatsInterval(params)
+	return f.client.Operations.PatchBalloonStatsIntervalContext(timeout, params)
 }
 
 type GetExportVMConfigOpt func(*ops.GetExportVMConfigParams)

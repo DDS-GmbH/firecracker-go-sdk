@@ -65,7 +65,7 @@ func (l listener) Accept() (net.Conn, error) {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-tickerCh:
-			conn, err := tryAccept(logger, l.listener, l.port)
+			conn, err := tryAccept(logger, l.listener)
 			if isTemporaryNetErr(err) {
 				err = fmt.Errorf("temporary vsock accept failure: %w", err)
 				logger.WithError(err).Debug()
@@ -92,8 +92,8 @@ func (l listener) Addr() net.Addr {
 }
 
 // tryAccept attempts to accept a single host-side connection from the provided
-// guest-side listener at the provided port.
-func tryAccept(logger *logrus.Entry, listener net.Listener, port uint32) (net.Conn, error) {
+// guest-side listener.
+func tryAccept(logger *logrus.Entry, listener net.Listener) (net.Conn, error) {
 	conn, err := listener.Accept()
 	if err != nil {
 		return nil, err

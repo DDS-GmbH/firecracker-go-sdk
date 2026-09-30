@@ -49,9 +49,9 @@ func TestClient(t *testing.T) {
 	}()
 
 	drive := &models.Drive{
-		DriveID:      String("test"),
+		DriveID:      new("test"),
 		IsReadOnly:   false,
-		IsRootDevice: Bool(false),
+		IsRootDevice: new(false),
 		PathOnHost:   filepath.Join(testDataPath, "drive-2.img"),
 	}
 

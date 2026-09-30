@@ -95,8 +95,8 @@ func modifyHandlersForLoadSnapshot(l HandlerList) HandlerList {
 func WithMemoryBackend(backendType, backendPath string) WithSnapshotOpt {
 	return func(cfg *SnapshotConfig) {
 		cfg.MemBackend = &models.MemoryBackend{
-			BackendType: String(backendType),
-			BackendPath: String(backendPath),
+			BackendType: new(backendType),
+			BackendPath: new(backendPath),
 		}
 	}
 }

@@ -50,14 +50,14 @@ func createMachine(ctx context.Context, name string, forwardSignals []os.Signal)
 		MetricsFifo:     metrics,
 		LogLevel:        "Info",
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(1),
-			MemSizeMib: Int64(256),
-			Smt:        Bool(false),
+			VcpuCount:  new(int64(1)),
+			MemSizeMib: new(int64(256)),
+			Smt:        new(false),
 		},
 		Drives: []models.Drive{
 			{
-				DriveID:      String("root"),
-				IsRootDevice: Bool(true),
+				DriveID:      new("root"),
+				IsRootDevice: new(true),
 				IsReadOnly:   true,
 				PathOnHost:   testRootfs,
 			},
@@ -120,7 +120,7 @@ func benchmarkForwardSignals(b *testing.B, forwardSignals []os.Signal) {
 
 	for i := 0; i < b.N; i++ {
 		errCh := make(chan error, numberOfVMs)
-		for j := 0; j < numberOfVMs; j++ {
+		for range numberOfVMs {
 			go func() {
 				var err error
 				defer func() { errCh <- err }()
@@ -138,11 +138,11 @@ func benchmarkForwardSignals(b *testing.B, forwardSignals []os.Signal) {
 					return // anonymous defer func() will deliver the error
 				}
 
-				return // anonymous defer func() will deliver this nil error
+				// anonymous defer func() will deliver this nil error
 			}()
 		}
 
-		for k := 0; k < numberOfVMs; k++ {
+		for range numberOfVMs {
 			err := <-errCh
 			if err != nil {
 				b.Fatal(err)

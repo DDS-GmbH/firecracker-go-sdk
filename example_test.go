@@ -32,7 +32,7 @@ func ExampleWithProcessRunner_logging() {
 		KernelImagePath: "/path/to/kernel",
 		Drives:          firecracker.NewDrivesBuilder("/path/to/rootfs").Build(),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount: firecracker.Int64(1),
+			VcpuCount: new(int64(1)),
 		},
 	}
 
@@ -109,7 +109,7 @@ func ExampleDrivesBuilder() {
 		// build our drives into the machine's configuration
 		Drives: b.Build(),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount: firecracker.Int64(1),
+			VcpuCount: new(int64(1)),
 		},
 	}
 
@@ -137,9 +137,9 @@ func ExampleDrivesBuilder_driveOpt() {
 			// set our custom bandwidth rate limiter
 			drive.RateLimiter = &models.RateLimiter{
 				Bandwidth: &models.TokenBucket{
-					OneTimeBurst: firecracker.Int64(1024 * 1024),
-					RefillTime:   firecracker.Int64(500),
-					Size:         firecracker.Int64(1024 * 1024),
+					OneTimeBurst: new(int64(1024 * 1024)),
+					RefillTime:   new(int64(500)),
+					Size:         new(int64(1024 * 1024)),
 				},
 			}
 		}).
@@ -153,7 +153,7 @@ func ExampleDrivesBuilder_driveOpt() {
 		// build our drives into the machine's configuration
 		Drives: drives,
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount: firecracker.Int64(1),
+			VcpuCount: new(int64(1)),
 		},
 	}
 
@@ -211,7 +211,7 @@ func ExampleNetworkInterface_rateLimiting() {
 		KernelImagePath: "/path/to/kernel",
 		Drives:          firecracker.NewDrivesBuilder("/path/to/rootfs").Build(),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount: firecracker.Int64(1),
+			VcpuCount: new(int64(1)),
 		},
 		NetworkInterfaces: networkIfaces,
 	}
@@ -257,15 +257,15 @@ func ExampleJailerConfig_enablingJailer() {
 		Drives:          firecracker.NewDrivesBuilder("/path/to/rootfs").Build(),
 		LogLevel:        "Debug",
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  firecracker.Int64(1),
-			Smt:        firecracker.Bool(false),
-			MemSizeMib: firecracker.Int64(256),
+			VcpuCount:  new(int64(1)),
+			Smt:        new(false),
+			MemSizeMib: new(int64(256)),
 		},
 		JailerCfg: &firecracker.JailerConfig{
 			UID:            &uid,
 			GID:            &gid,
 			ID:             id,
-			NumaNode:       firecracker.Int(0),
+			NumaNode:       new(0),
 			ChrootBaseDir:  path,
 			ChrootStrategy: firecracker.NewNaiveChrootStrategy(kernelImagePath),
 			ExecFile:       "/path/to/firecracker-binary",

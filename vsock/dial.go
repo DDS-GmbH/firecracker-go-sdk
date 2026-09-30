@@ -204,9 +204,15 @@ func tryConnect(logger *logrus.Entry, udsPath string, port uint32, c config) (ne
 // within the provided timeout. It will reset socket deadlines to none after returning.
 // It's only intended to be used for connect/ack messages, not general purpose reads
 // after the vsock connection is established fully.
-func tryConnReadUntil(conn net.Conn, end byte, timeout time.Duration) (string, error) {
-	conn.SetDeadline(time.Now().Add(timeout))
-	defer conn.SetDeadline(time.Time{})
+func tryConnReadUntil(conn net.Conn, end byte, timeout time.Duration) (s string, e error) {
+	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
+		return "", err
+	}
+	defer func() {
+		if err := conn.SetDeadline(time.Time{}); err != nil && e == nil {
+			e = err
+		}
+	}()
 
 	return bufio.NewReaderSize(conn, 32).ReadString(end)
 }
@@ -216,9 +222,16 @@ func tryConnReadUntil(conn net.Conn, end byte, timeout time.Duration) (string, e
 // will reset socket deadlines to none after returning. It's only intended to be
 // used for connect/ack messages, not general purpose writes after the vsock
 // connection is established fully.
-func tryConnWrite(conn net.Conn, expectedWrite string, timeout time.Duration) error {
-	conn.SetDeadline(time.Now().Add(timeout))
-	defer conn.SetDeadline(time.Time{})
+func tryConnWrite(conn net.Conn, expectedWrite string, timeout time.Duration) (e error) {
+	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
+		return err
+	}
+
+	defer func() {
+		if err := conn.SetDeadline(time.Time{}); err != nil && e == nil {
+			e = err
+		}
+	}()
 
 	bytesWritten, err := conn.Write([]byte(expectedWrite))
 	if err != nil {
@@ -268,5 +281,5 @@ func (e ackError) Timeout() bool {
 // isTemporaryNetErr returns whether the provided error is a retriable error.
 func isTemporaryNetErr(err error) bool {
 	var netError net.Error
-	return err != nil && errors.As(err, &netError) && netError.Temporary()
+	return err != nil && errors.As(err, &netError) && netError.Timeout()
 }

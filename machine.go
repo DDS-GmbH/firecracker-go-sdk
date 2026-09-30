@@ -513,13 +513,13 @@ func (m *Machine) GetFirecrackerVersion(ctx context.Context) (string, error) {
 }
 
 func (m *Machine) setupNetwork(ctx context.Context) error {
-	err, cleanupFuncs := m.Cfg.NetworkInterfaces.setupNetwork(ctx, m.Cfg.VMID, m.Cfg.NetNS, m.logger)
+	cleanupFuncs, err := m.Cfg.NetworkInterfaces.setupNetwork(ctx, m.Cfg.VMID, m.Cfg.NetNS, m.logger)
 	m.cleanupFuncs = append(m.cleanupFuncs, cleanupFuncs...)
 
 	return err
 }
 
-func (m *Machine) setupKernelArgs(ctx context.Context) error {
+func (m *Machine) setupKernelArgs() error {
 	kernelArgs := parseKernelArgs(m.Cfg.KernelArgs)
 
 	// If any network interfaces have a static IP configured, we need to set the "ip=" boot param.
@@ -545,7 +545,7 @@ func (m *Machine) createNetworkInterfaces(ctx context.Context, ifaces ...Network
 }
 
 func (m *Machine) addVsocks(ctx context.Context, vsocks ...VsockDevice) error {
-	for _, dev := range m.Cfg.VsockDevices {
+	for _, dev := range vsocks {
 		if err := m.addVsock(ctx, dev); err != nil {
 			return err
 		}
@@ -650,7 +650,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	// Wait for firecracker to initialize:
 	err = m.waitForSocket(time.Duration(m.client.firecrackerInitTimeout)*time.Second, errCh)
 	if err != nil {
-		err = fmt.Errorf("Firecracker did not create API socket %s: %w", m.Cfg.SocketPath, err)
+		err = fmt.Errorf("firecracker did not create API socket %s: %w", m.Cfg.SocketPath, err)
 		m.fatalErr = err
 		close(m.exitCh)
 
@@ -717,7 +717,7 @@ func createFifo(path string) error {
 	log.Debugf("Creating FIFO %s", path)
 
 	if err := syscall.Mkfifo(path, 0700); err != nil {
-		return fmt.Errorf("Failed to create log fifo: %v", err)
+		return fmt.Errorf("failed to create log fifo: %v", err)
 	}
 
 	return nil
@@ -737,7 +737,7 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 
 	// m.Cfg.LogLevel cannot be nil, but Firecracker allows setting a logger
 	// without its level. Converting "" to nil to support the corner case.
-	level := String(m.Cfg.LogLevel)
+	level := new(m.Cfg.LogLevel)
 	if StringValue(level) == "" {
 		level = nil
 	}
@@ -745,8 +745,8 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 	l := models.Logger{
 		LogPath:       path,
 		Level:         level,
-		ShowLevel:     Bool(true),
-		ShowLogOrigin: Bool(false),
+		ShowLevel:     new(true),
+		ShowLogOrigin: new(false),
 	}
 
 	_, err := m.client.PutLogger(ctx, &l)
@@ -772,7 +772,7 @@ func (m *Machine) setupMetrics(ctx context.Context) error {
 	}
 
 	_, err := m.client.PutMetrics(ctx, &models.Metrics{
-		MetricsPath: String(path),
+		MetricsPath: new(path),
 	})
 	if err != nil {
 		return err
@@ -792,7 +792,7 @@ func (m *Machine) captureFifoToFileWithChannel(ctx context.Context, logger *log.
 	// to write its contents to a file.
 	fifoPipe, err := fifo.OpenFifo(ctx, fifoPath, syscall.O_RDONLY|syscall.O_NONBLOCK, 0600)
 	if err != nil {
-		return fmt.Errorf("Failed to open fifo path at %q: %v", fifoPath, err)
+		return fmt.Errorf("failed to open fifo path at %q: %v", fifoPath, err)
 	}
 
 	logger.Debugf("Capturing %q to writer", fifoPath)
@@ -884,7 +884,7 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 	ifaceCfg := models.NetworkInterface{
 		IfaceID:     &ifaceID,
 		GuestMac:    iface.StaticConfiguration.MacAddress,
-		HostDevName: String(iface.StaticConfiguration.HostDevName),
+		HostDevName: new(iface.StaticConfiguration.HostDevName),
 	}
 
 	if iface.InRateLimiter != nil {
@@ -946,7 +946,7 @@ func (m *Machine) attachDrive(ctx context.Context, dev models.Drive) error {
 // addVsock adds a vsock to the instance
 func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
 	vsockCfg := models.Vsock{
-		GuestCid: Int64(int64(dev.CID)),
+		GuestCid: new(int64(dev.CID)),
 		UdsPath:  &dev.Path,
 		VsockID:  dev.ID,
 	}
@@ -1002,13 +1002,13 @@ func (m *Machine) setMmdsConfig(ctx context.Context, address net.IP, ifaces Netw
 	// MMDS config supports v1 and v2, v1 is going to be deprecated.
 	// Default to the version 1 if no version is specified
 	if version == MMDSv1 || version == MMDSv2 {
-		mmdsCfg.Version = String(string(version))
+		mmdsCfg.Version = new(string(version))
 	} else {
-		mmdsCfg.Version = String(string(MMDSv1))
+		mmdsCfg.Version = new(string(MMDSv1))
 	}
 
 	if address != nil {
-		mmdsCfg.IPv4Address = String(address.String())
+		mmdsCfg.IPv4Address = new(address.String())
 	}
 
 	for id, iface := range ifaces {
@@ -1035,7 +1035,7 @@ func (m *Machine) setMmdsConfig(ctx context.Context, address net.IP, ifaces Netw
 }
 
 // SetMetadata sets the machine's metadata for MDDS
-func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
+func (m *Machine) SetMetadata(ctx context.Context, metadata any) error {
 	if _, err := m.client.PutMmds(ctx, metadata); err != nil {
 		m.logger.Errorf("Setting metadata: %s", err)
 		return err
@@ -1047,7 +1047,7 @@ func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
 }
 
 // UpdateMetadata patches the machine's metadata for MDDS
-func (m *Machine) UpdateMetadata(ctx context.Context, metadata interface{}) error {
+func (m *Machine) UpdateMetadata(ctx context.Context, metadata any) error {
 	if _, err := m.client.PatchMmds(ctx, metadata); err != nil {
 		m.logger.Errorf("Updating metadata: %s", err)
 		return err
@@ -1059,7 +1059,7 @@ func (m *Machine) UpdateMetadata(ctx context.Context, metadata interface{}) erro
 }
 
 // GetMetadata gets the machine's metadata from MDDS and unmarshals it into v
-func (m *Machine) GetMetadata(ctx context.Context, v interface{}) error {
+func (m *Machine) GetMetadata(ctx context.Context, v any) error {
 	resp, err := m.client.GetMmds(ctx)
 	if err != nil {
 		m.logger.Errorf("Getting metadata: %s", err)
@@ -1180,7 +1180,9 @@ func (m *Machine) setupSignals() {
 			case sig := <-sigchan:
 				m.logger.Debugf("Caught signal %s", sig)
 				// Some signals kill the process, some of them are not.
-				m.cmd.Process.Signal(sig)
+				if err := m.cmd.Process.Signal(sig); err != nil {
+					m.logger.Warnf("Could not send signal %s to process: %v", sig, err)
+				}
 			case <-m.exitCh:
 				// And if a signal kills the process, we can stop this for loop and remove sigchan.
 				break ForLoop
@@ -1195,7 +1197,7 @@ func (m *Machine) setupSignals() {
 // PauseVM pauses the VM
 func (m *Machine) PauseVM(ctx context.Context, opts ...PatchVMOpt) error {
 	vm := &models.VM{
-		State: String(models.VMStatePaused),
+		State: new(models.VMStatePaused),
 	}
 
 	if _, err := m.client.PatchVM(ctx, vm, opts...); err != nil {
@@ -1211,7 +1213,7 @@ func (m *Machine) PauseVM(ctx context.Context, opts ...PatchVMOpt) error {
 // ResumeVM resumes the VM
 func (m *Machine) ResumeVM(ctx context.Context, opts ...PatchVMOpt) error {
 	vm := &models.VM{
-		State: String(models.VMStateResumed),
+		State: new(models.VMStateResumed),
 	}
 
 	if _, err := m.client.PatchVM(ctx, vm, opts...); err != nil {
@@ -1227,8 +1229,8 @@ func (m *Machine) ResumeVM(ctx context.Context, opts ...PatchVMOpt) error {
 // CreateSnapshot creates a snapshot of the VM
 func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath string, opts ...CreateSnapshotOpt) error {
 	snapshotParams := &models.SnapshotCreateParams{
-		MemFilePath:  String(memFilePath),
-		SnapshotPath: String(snapshotPath),
+		MemFilePath:  new(memFilePath),
+		SnapshotPath: new(snapshotPath),
 	}
 
 	if _, err := m.client.CreateSnapshot(ctx, snapshotParams, opts...); err != nil {

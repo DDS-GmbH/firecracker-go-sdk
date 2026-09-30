@@ -27,7 +27,7 @@ type MachineIface interface {
 	StopVMM() error
 	Shutdown(context.Context) error
 	Wait(context.Context) error
-	SetMetadata(context.Context, interface{}) error
+	SetMetadata(context.Context, any) error
 	UpdateGuestDrive(context.Context, string, string, ...PatchGuestDriveByIDOpt) error
 	UpdateGuestNetworkInterfaceRateLimit(context.Context, string, RateLimiterSet, ...PatchGuestNetworkInterfaceByIDOpt) error
 }

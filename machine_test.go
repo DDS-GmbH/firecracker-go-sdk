@@ -95,8 +95,7 @@ var fsSafeTestName = strings.NewReplacer("/", "_")
 func makeSocketPath(tb testing.TB) (string, func()) {
 	tb.Helper()
 
-	dir, err := os.MkdirTemp("", fsSafeTestName.Replace(tb.Name()))
-	require.NoError(tb, err)
+	dir := tb.TempDir()
 
 	return filepath.Join(dir, "fc.sock"), func() { os.RemoveAll(dir) }
 }
@@ -116,9 +115,9 @@ func TestNewMachine(t *testing.T) {
 		Config{
 			DisableValidation: true,
 			MachineCfg: models.MachineConfiguration{
-				VcpuCount:  Int64(1),
-				MemSizeMib: Int64(100),
-				Smt:        Bool(false),
+				VcpuCount:  new(int64(1)),
+				MemSizeMib: new(int64(100)),
+				Smt:        new(false),
 			},
 		},
 		WithLogger(fctesting.NewLogEntry(t)))
@@ -156,12 +155,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		}
 	}
 
-	// uses temp directory due to testdata's path being too long which causes a
-	// SUN_LEN error.
-	tmpDir, err := os.MkdirTemp(os.TempDir(), "jailer-test")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
-	}
+	tmpDir := t.TempDir()
 
 	vmlinuxPath := filepath.Join(tmpDir, "vmlinux")
 	if err := copyFile(filepath.Join(testDataPath, "vmlinux"), vmlinuxPath, jailerUID, jailerGID); err != nil {
@@ -215,23 +209,23 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		LogLevel:        "Debug",
 		KernelImagePath: vmlinuxPath,
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(nCpus),
-			MemSizeMib: Int64(memSz),
-			Smt:        Bool(false),
+			VcpuCount:  new(nCpus),
+			MemSizeMib: new(memSz),
+			Smt:        new(false),
 		},
 		Drives: []models.Drive{
 			{
-				DriveID:      String("1"),
-				IsRootDevice: Bool(true),
+				DriveID:      new("1"),
+				IsRootDevice: new(true),
 				IsReadOnly:   false,
 				PathOnHost:   rootdrivePath,
 			},
 		},
 		JailerCfg: &JailerConfig{
 			JailerBinary:   getJailerBinaryPath(),
-			GID:            Int(jailerGID),
-			UID:            Int(jailerUID),
-			NumaNode:       Int(0),
+			GID:            new(jailerGID),
+			UID:            new(jailerUID),
+			NumaNode:       new(0),
 			ID:             id,
 			ChrootBaseDir:  jailerTestPath,
 			ExecFile:       getFirecrackerBinaryPath(),
@@ -295,7 +289,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	m.StopVMM()
 
 	info, err := os.Stat(capturedLog)
-	assert.NoError(t, err, "failed to stat captured log file")
+	require.NoError(t, err, "failed to stat captured log file")
 	assert.NotEqual(t, 0, info.Size())
 }
 
@@ -307,8 +301,7 @@ func TestMicroVMExecution(t *testing.T) {
 		memSz int64 = 256
 	)
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
 
 	defer os.RemoveAll(dir)
 
@@ -336,9 +329,9 @@ func TestMicroVMExecution(t *testing.T) {
 		MetricsFifo: metricsFifo,
 		LogLevel:    "Debug",
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(nCpus),
-			MemSizeMib: Int64(memSz),
-			Smt:        Bool(false),
+			VcpuCount:  new(nCpus),
+			MemSizeMib: new(memSz),
+			Smt:        new(false),
 		},
 		DisableValidation: true,
 		NetworkInterfaces: networkIfaces,
@@ -388,7 +381,7 @@ func TestMicroVMExecution(t *testing.T) {
 
 	t.Run("TestCreateMachine", func(t *testing.T) { testCreateMachine(ctx, t, m) })
 	t.Run("TestGetFirecrackerVersion", func(t *testing.T) { testGetFirecrackerVersion(ctx, t, m) })
-	t.Run("TestMachineConfigApplication", func(t *testing.T) { testMachineConfigApplication(ctx, t, m, cfg) })
+	t.Run("TestMachineConfigApplication", func(t *testing.T) { testMachineConfigApplication(t, m, cfg) })
 	t.Run("TestCreateBootSource", func(t *testing.T) { testCreateBootSource(ctx, t, m, vmlinuxPath) })
 	t.Run("TestCreateNetworkInterface", func(t *testing.T) { testCreateNetworkInterfaceByID(ctx, t, m) })
 	t.Run("TestAttachRootDrive", func(t *testing.T) { testAttachRootDrive(ctx, t, m) })
@@ -421,7 +414,7 @@ func TestMicroVMExecution(t *testing.T) {
 	m.Wait(vmmCtx)
 
 	info, err := os.Stat(capturedLog)
-	assert.NoError(t, err, "failed to stat captured log file")
+	require.NoError(t, err, "failed to stat captured log file")
 	assert.NotEqual(t, 0, info.Size())
 }
 
@@ -456,13 +449,12 @@ func TestStartVMM(t *testing.T) {
 	}
 	defer m.StopVMM()
 
-	select {
-	case <-timeout.Done():
-		if errors.Is(timeout.Err(), context.DeadlineExceeded) {
-			t.Log("firecracker ran for 250ms")
-		} else {
-			t.Errorf("startVMM returned %s", m.Wait(ctx))
-		}
+	<-timeout.Done()
+
+	if errors.Is(timeout.Err(), context.DeadlineExceeded) {
+		t.Log("firecracker ran for 250ms")
+	} else {
+		t.Errorf("startVMM returned %s", m.Wait(ctx))
 	}
 
 	// Make sure exitCh close
@@ -525,8 +517,7 @@ func skipLogAndMetricsTest() bool {
 func testLogAndMetrics(t *testing.T, logLevel string) string {
 	const vmID = "UserSuppliedVMID"
 
-	dir, err := os.MkdirTemp("", strings.ReplaceAll(t.Name(), "/", "_"))
-	require.NoError(t, err)
+	dir := t.TempDir()
 
 	defer os.RemoveAll(dir)
 
@@ -538,9 +529,9 @@ func testLogAndMetrics(t *testing.T, logLevel string) string {
 		DisableValidation: true,
 		KernelImagePath:   getVmlinuxPath(t),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(1),
-			MemSizeMib: Int64(64),
-			Smt:        Bool(false),
+			VcpuCount:  new(int64(1)),
+			MemSizeMib: new(int64(64)),
+			Smt:        new(false),
 		},
 		MetricsPath: filepath.Join(dir, "fc-metrics.out"),
 		LogPath:     filepath.Join(dir, "fc.log"),
@@ -559,14 +550,13 @@ func testLogAndMetrics(t *testing.T, logLevel string) string {
 
 	defer m.StopVMM()
 
-	select {
-	case <-timeout.Done():
-		if errors.Is(timeout.Err(), context.DeadlineExceeded) {
-			t.Log("firecracker ran for 250ms")
-			t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
-		} else {
-			t.Errorf("startVMM returned %s", m.Wait(ctx))
-		}
+	<-timeout.Done()
+
+	if errors.Is(timeout.Err(), context.DeadlineExceeded) {
+		t.Log("firecracker ran for 250ms")
+		t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(t, m) })
+	} else {
+		t.Errorf("startVMM returned %s", m.Wait(ctx))
 	}
 
 	metrics, err := os.Stat(cfg.MetricsPath)
@@ -594,9 +584,9 @@ func TestStartVMMOnce(t *testing.T) {
 		DisableValidation: true,
 		KernelImagePath:   getVmlinuxPath(t),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(1),
-			MemSizeMib: Int64(64),
-			Smt:        Bool(false),
+			VcpuCount:  new(int64(1)),
+			MemSizeMib: new(int64(64)),
+			Smt:        new(false),
 		},
 	}
 
@@ -626,17 +616,16 @@ func TestStartVMMOnce(t *testing.T) {
 	defer m.StopVMM()
 
 	err = m.Start(timeout)
-	assert.Error(t, err, "should return an error when Start is called multiple times")
+	require.Error(t, err, "should return an error when Start is called multiple times")
 	assert.Equal(t, ErrAlreadyStarted, err, "should be ErrAlreadyStarted")
 
-	select {
-	case <-timeout.Done():
-		if errors.Is(timeout.Err(), context.DeadlineExceeded) {
-			t.Log("firecracker ran for 250ms")
-			t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
-		} else {
-			t.Errorf("startVMM returned %s", m.Wait(ctx))
-		}
+	<-timeout.Done()
+
+	if errors.Is(timeout.Err(), context.DeadlineExceeded) {
+		t.Log("firecracker ran for 250ms")
+		t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(t, m) })
+	} else {
+		t.Errorf("startVMM returned %s", m.Wait(ctx))
 	}
 }
 
@@ -721,7 +710,7 @@ func testGetFirecrackerVersion(ctx context.Context, t *testing.T, m *Machine) {
 		expectedVersion, version)
 }
 
-func testMachineConfigApplication(ctx context.Context, t *testing.T, m *Machine, expectedValues Config) {
+func testMachineConfigApplication(t *testing.T, m *Machine, expectedValues Config) {
 	assert.Equal(t, expectedValues.MachineCfg.VcpuCount,
 		m.machineConfig.VcpuCount, "CPU count should be equal")
 
@@ -790,8 +779,8 @@ func getTapName() string {
 
 func testAttachRootDrive(ctx context.Context, t *testing.T, m *Machine) {
 	drive := models.Drive{
-		DriveID:      String("0"),
-		IsRootDevice: Bool(true),
+		DriveID:      new("0"),
+		IsRootDevice: new(true),
 		IsReadOnly:   true,
 		PathOnHost:   testRootfs,
 	}
@@ -804,8 +793,8 @@ func testAttachRootDrive(ctx context.Context, t *testing.T, m *Machine) {
 
 func testAttachSecondaryDrive(ctx context.Context, t *testing.T, m *Machine) {
 	drive := models.Drive{
-		DriveID:      String("2"),
-		IsRootDevice: Bool(false),
+		DriveID:      new("2"),
+		IsRootDevice: new(false),
 		IsReadOnly:   true,
 		PathOnHost:   filepath.Join(testDataPath, "drive-2.img"),
 	}
@@ -852,7 +841,7 @@ Grant yourself permission with `+"`sudo setfacl -m u:${USER}:rw /dev/vhost-vsock
 	}
 }
 
-func testStopVMM(ctx context.Context, t *testing.T, m *Machine) {
+func testStopVMM(t *testing.T, m *Machine) {
 	err := m.StopVMM()
 	if err != nil {
 		t.Errorf("StopVMM failed: %s", err)
@@ -866,13 +855,12 @@ func TestStopVMMCleanup(t *testing.T) {
 	socketPath, cleanup := makeSocketPath(t)
 	defer cleanup()
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
 
 	defer os.RemoveAll(dir)
 
 	cniConfDir := filepath.Join(dir, "cni.conf")
-	err = os.MkdirAll(cniConfDir, 0777)
+	err := os.MkdirAll(cniConfDir, 0777)
 	require.NoError(t, err)
 
 	cniBinPath := []string{testDataBin}
@@ -907,9 +895,9 @@ func TestStopVMMCleanup(t *testing.T) {
 		KernelImagePath:   getVmlinuxPath(t),
 		NetworkInterfaces: []NetworkInterface{networkInterface},
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(1),
-			MemSizeMib: Int64(64),
-			Smt:        Bool(false),
+			VcpuCount:  new(int64(1)),
+			MemSizeMib: new(int64(64)),
+			Smt:        new(false),
 		},
 	}
 	ctx := context.Background()
@@ -1009,8 +997,7 @@ func TestMicroVMExecutionWithMmdsV2(t *testing.T) {
 		memSz int64 = 256
 	)
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
 
 	defer os.RemoveAll(dir)
 
@@ -1038,9 +1025,9 @@ func TestMicroVMExecutionWithMmdsV2(t *testing.T) {
 		MetricsFifo: metricsFifo,
 		LogLevel:    "Debug",
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(nCpus),
-			MemSizeMib: Int64(memSz),
-			Smt:        Bool(false),
+			VcpuCount:  new(nCpus),
+			MemSizeMib: new(memSz),
+			Smt:        new(false),
 		},
 		DisableValidation: true,
 		NetworkInterfaces: networkIfaces,
@@ -1124,7 +1111,7 @@ func testUpdateMetadata(ctx context.Context, t *testing.T, m *Machine) {
 func testGetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 	metadata := struct {
 		Key      string `json:"key"`
-		PatchKey string `json:"patch_key"`
+		PatchKey string `json:"patchKey"`
 	}{}
 	if err := m.GetMetadata(ctx, &metadata); err != nil {
 		t.Errorf("failed to get metadata: %s", err)
@@ -1163,8 +1150,8 @@ func TestLogFiles(t *testing.T) {
 		KernelImagePath: filepath.Join(testDataPath, "vmlinux"), SocketPath: filepath.Join(testDataPath, "socket-path"),
 		Drives: []models.Drive{
 			{
-				DriveID:      String("0"),
-				IsRootDevice: Bool(true),
+				DriveID:      new("0"),
+				IsRootDevice: new(true),
 				IsReadOnly:   false,
 				PathOnHost:   testRootfs,
 			},
@@ -1239,8 +1226,7 @@ func TestLogFiles(t *testing.T) {
 }
 
 func TestCaptureFifoToFile(t *testing.T) {
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
 
 	defer os.RemoveAll(dir)
 
@@ -1293,15 +1279,14 @@ func TestCaptureFifoToFile(t *testing.T) {
 	wg.Wait()
 
 	_, err = os.Stat(logPath)
-	assert.NoError(t, err, "failed to stat file")
+	require.NoError(t, err, "failed to stat file")
 	b, err := os.ReadFile(logPath)
-	assert.NoError(t, err, "failed to read logPath")
+	require.NoError(t, err, "failed to read logPath")
 	assert.Equal(t, expectedBytes, b)
 }
 
 func TestCaptureFifoToFile_nonblock(t *testing.T) {
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
 
 	defer os.RemoveAll(dir)
 
@@ -1361,9 +1346,9 @@ func TestCaptureFifoToFile_nonblock(t *testing.T) {
 	wg.Wait()
 
 	_, err = os.Stat(logPath)
-	assert.NoError(t, err, "failed to stat file")
+	require.NoError(t, err, "failed to stat file")
 	b, err := os.ReadFile(logPath)
-	assert.NoError(t, err, "failed to read logPath")
+	require.NoError(t, err, "failed to read logPath")
 	assert.Equal(t, expectedBytes, b)
 }
 
@@ -1432,8 +1417,7 @@ func TestPID(t *testing.T) {
 		t.Errorf("expected an error, but received none")
 	}
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
 
 	defer os.RemoveAll(dir)
 
@@ -1458,14 +1442,14 @@ func TestPID(t *testing.T) {
 		SocketPath:      socketPath,
 		KernelImagePath: vmlinuxPath,
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(nCpus),
-			MemSizeMib: Int64(memSz),
-			Smt:        Bool(false),
+			VcpuCount:  new(nCpus),
+			MemSizeMib: new(memSz),
+			Smt:        new(false),
 		},
 		Drives: []models.Drive{
 			{
-				DriveID:      String("1"),
-				IsRootDevice: Bool(true),
+				DriveID:      new("1"),
+				IsRootDevice: new(true),
 				IsReadOnly:   false,
 				PathOnHost:   rootfsPath,
 			},
@@ -1515,13 +1499,12 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 		exitCh: make(chan struct{}),
 	}
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
 
 	defer os.RemoveAll(dir)
 
 	fifoPath := filepath.Join(dir, "TestCaptureFifoToFileLeak.fifo")
-	err = syscall.Mkfifo(fifoPath, 0700)
+	err := syscall.Mkfifo(fifoPath, 0700)
 	require.NoError(t, err, "failed to make fifo")
 
 	defer os.Remove(fifoPath)
@@ -1536,7 +1519,7 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 		for {
 			select {
 			case <-m.exitCh:
-				break
+				return
 			default:
 				_, err := f.Write([]byte("A"))
 				assert.NoError(t, err, "failed to write bytes to fifo")
@@ -1553,7 +1536,7 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 
 	done := make(chan error)
 	err = m.captureFifoToFileWithChannel(context.Background(), logger, fifoPath, buf, done)
-	assert.NoError(t, err, "failed to capture fifo to file")
+	require.NoError(t, err, "failed to capture fifo to file")
 
 	// Stopping the machine will close the FIFO
 	close(m.exitCh)
@@ -1646,12 +1629,10 @@ func TestWait(t *testing.T) {
 
 			var wg sync.WaitGroup
 
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 
 				c.stop(m, vmCancel)
-			}()
+			})
 
 			err = m.Wait(ctx)
 			require.Error(t, err, "Firecracker was killed and it must be reported")
@@ -1700,10 +1681,8 @@ func TestWaitWithInvalidBinary(t *testing.T) {
 	err = m.Start(ctx)
 	require.Error(t, err, "Start() reports an error")
 
-	select {
-	case errFromWait := <-ch:
-		require.Equal(t, errFromWait, err)
-	}
+	errFromWait := <-ch
+	require.Equal(t, errFromWait, err)
 }
 
 func TestWaitWithNoSocket(t *testing.T) {
@@ -1729,10 +1708,8 @@ func TestWaitWithNoSocket(t *testing.T) {
 	err = m.Start(ctx)
 	require.Error(t, err, "Start() reports an error")
 
-	select {
-	case errFromWait := <-ch:
-		require.Equal(t, errFromWait, err)
-	}
+	errFromWait := <-ch
+	require.Equal(t, errFromWait, err)
 }
 
 type machineConfigOpt func(c *Config)
@@ -1746,8 +1723,8 @@ func withRootDrive(rootfs string) machineConfigOpt {
 		for _, drive := range c.Drives {
 			if *drive.IsRootDevice {
 				drives = append(drives, models.Drive{
-					DriveID:      String("root"),
-					IsRootDevice: Bool(true),
+					DriveID:      new("root"),
+					IsRootDevice: new(true),
 					IsReadOnly:   false,
 					PathOnHost:   rootfs,
 				})
@@ -1759,8 +1736,8 @@ func withRootDrive(rootfs string) machineConfigOpt {
 
 		if !inserted {
 			drives = append(drives, models.Drive{
-				DriveID:      String("root"),
-				IsRootDevice: Bool(true),
+				DriveID:      new("root"),
+				IsRootDevice: new(true),
 				IsReadOnly:   false,
 				PathOnHost:   rootfs,
 			})
@@ -1781,14 +1758,14 @@ func createValidConfig(t *testing.T, socketPath string, opts ...machineConfigOpt
 		SocketPath:      socketPath,
 		KernelImagePath: getVmlinuxPath(t),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:  Int64(2),
-			MemSizeMib: Int64(256),
-			Smt:        Bool(false),
+			VcpuCount:  new(int64(2)),
+			MemSizeMib: new(int64(256)),
+			Smt:        new(false),
 		},
 		Drives: []models.Drive{
 			{
-				DriveID:      String("root"),
-				IsRootDevice: Bool(true),
+				DriveID:      new("root"),
+				IsRootDevice: new(true),
 				IsReadOnly:   true,
 				PathOnHost:   testRootfs,
 			},
@@ -1822,8 +1799,8 @@ func TestSignalForwarding(t *testing.T) {
 		SocketPath:      socketPath,
 		Drives: []models.Drive{
 			{
-				DriveID:      String("0"),
-				IsRootDevice: Bool(true),
+				DriveID:      new("0"),
+				IsRootDevice: new(true),
 				IsReadOnly:   false,
 				PathOnHost:   testRootfs,
 			},
@@ -1850,7 +1827,7 @@ func TestSignalForwarding(t *testing.T) {
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	stdin, err := cmd.StdinPipe()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	m, err := NewMachine(
 		ctx,
@@ -1898,9 +1875,9 @@ func TestSignalForwarding(t *testing.T) {
 	err = m.Wait(ctx)
 	require.NoError(t, err, "wait returned an error")
 
-	receivedSignals := []os.Signal{}
+	receivedSignals := make([]os.Signal, 0, 5)
 
-	for _, sigStr := range strings.Split(strings.TrimSpace(stdout.String()), "\n") {
+	for sigStr := range strings.SplitSeq(strings.TrimSpace(stdout.String()), "\n") {
 		i, err := strconv.Atoi(sigStr)
 		require.NoError(t, err, "expected numeric output")
 
@@ -1914,8 +1891,7 @@ func TestPauseResume(t *testing.T) {
 	fctesting.RequiresKVM(t)
 	fctesting.RequiresRoot(t)
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
 
 	defer os.RemoveAll(dir)
 
@@ -2028,8 +2004,7 @@ func TestCreateSnapshot(t *testing.T) {
 	fctesting.RequiresKVM(t)
 	fctesting.RequiresRoot(t)
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
 
 	defer os.RemoveAll(dir)
 
@@ -2146,13 +2121,12 @@ func TestLoadSnapshot(t *testing.T) {
 	fctesting.RequiresKVM(t)
 	fctesting.RequiresRoot(t)
 
-	dir, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
+	dir := t.TempDir()
 
 	defer os.RemoveAll(dir)
 
 	cniConfDir := filepath.Join(dir, "cni.conf")
-	err = os.MkdirAll(cniConfDir, 0777)
+	err := os.MkdirAll(cniConfDir, 0777)
 	require.NoError(t, err)
 
 	cniBinPath := []string{testDataBin}
@@ -2184,8 +2158,8 @@ func TestLoadSnapshot(t *testing.T) {
 	var ipToRestore string
 
 	var (
-		maxRetries                  = 20
-		backoffTimeMs time.Duration = 500
+		maxRetries                = 20
+		backoffTime time.Duration = 500
 	)
 
 	cases := []struct {
@@ -2225,8 +2199,8 @@ func TestLoadSnapshot(t *testing.T) {
 					SocketPath: socketPath + ".load",
 					Drives: []models.Drive{
 						{
-							DriveID:      String("root"),
-							IsRootDevice: Bool(true),
+							DriveID:      new("root"),
+							IsRootDevice: new(true),
 							IsReadOnly:   true,
 							PathOnHost:   testRootfs,
 						},
@@ -2285,8 +2259,8 @@ func TestLoadSnapshot(t *testing.T) {
 					SocketPath: socketPath + ".load",
 					Drives: []models.Drive{
 						{
-							DriveID:      String("root"),
-							IsRootDevice: Bool(true),
+							DriveID:      new("root"),
+							IsRootDevice: new(true),
 							IsReadOnly:   true,
 							PathOnHost:   testRootfs,
 						},
@@ -2367,10 +2341,10 @@ func TestLoadSnapshot(t *testing.T) {
 				}()
 
 				var client *ssh.Client
-				for i := 0; i < maxRetries; i++ {
+				for range maxRetries {
 					client, err = connectToVM(m, sshKeyPath)
 					if err != nil {
-						time.Sleep(backoffTimeMs * time.Millisecond)
+						time.Sleep(backoffTime * time.Millisecond)
 					} else {
 						break
 					}
@@ -2403,10 +2377,10 @@ func TestLoadSnapshot(t *testing.T) {
 					err     error
 				)
 
-				for i := 0; i < maxRetries; i++ {
+				for range maxRetries {
 					// Wait till the file no longer exists (i.e. os.Stat returns an error)
 					if _, err = os.Stat(fmt.Sprintf("%s/networks/%s/%s", cniCacheDir, networkName, ipToRestore)); err == nil {
-						time.Sleep(backoffTimeMs * time.Millisecond)
+						time.Sleep(backoffTime * time.Millisecond)
 					} else {
 						ipFreed = true
 						break
@@ -2442,8 +2416,8 @@ func TestLoadSnapshot(t *testing.T) {
 					SocketPath: socketPath + ".load",
 					Drives: []models.Drive{
 						{
-							DriveID:      String("root"),
-							IsRootDevice: Bool(true),
+							DriveID:      new("root"),
+							IsRootDevice: new(true),
 							IsReadOnly:   true,
 							PathOnHost:   rootfsPath,
 						},
@@ -2468,10 +2442,10 @@ func TestLoadSnapshot(t *testing.T) {
 
 				var client *ssh.Client
 
-				for i := 0; i < maxRetries; i++ {
+				for range maxRetries {
 					client, err = connectToVM(m, sshKeyPath)
 					if err != nil {
-						time.Sleep(backoffTimeMs * time.Millisecond)
+						time.Sleep(backoffTime * time.Millisecond)
 					} else {
 						break
 					}
