@@ -1,3 +1,6 @@
+# 1.1.2
+* Readd net.Err interface implementatio
+
 # 1.1.1
 * Fix ack message reading not being retried
 
