@@ -1,5 +1,6 @@
 # 1.2.0
 * Add memory hotplugging methods to firecracker machine 
+* Use pci for device creation
 
 # 1.1.2
 * Readd net.Err interface implementation

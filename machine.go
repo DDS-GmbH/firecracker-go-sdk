@@ -362,6 +362,7 @@ func configureBuilder(builder VMCommandBuilder, cfg Config) VMCommandBuilder {
 	return builder.
 		WithSocketPath(cfg.SocketPath).
 		AddArgs("--id", cfg.VMID).
+		AddArgs("--enable-pci").
 		AddArgs(seccompArgs(&cfg)...)
 }
 
@@ -1384,7 +1385,7 @@ func (m *Machine) UpdateMemoryHotplugging(ctx context.Context, requestedSizeMib 
 }
 
 // GetMemoryHotplugging gets the status of the hotplugged memory.
-func (m *Machine) GetMemoryHotplugging(ctx context.Context, requestedSizeMib int64, opts ...GetMemoryHotpluggingStatusOpt) (*models.MemoryHotplugStatus, error) {
+func (m *Machine) GetMemoryHotplugging(ctx context.Context, opts ...GetMemoryHotpluggingStatusOpt) (*models.MemoryHotplugStatus, error) {
 	resp, err := m.client.GetMemoryHotpluggingStatus(ctx, opts...)
 	if err != nil {
 		m.logger.Errorf("Getting memory hotplugging status : %s", err)
