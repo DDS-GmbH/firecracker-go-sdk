@@ -1,5 +1,8 @@
+# 1.2.0
+* Add memory hotplugging methods to firecracker machine 
+
 # 1.1.2
-* Readd net.Err interface implementatio
+* Readd net.Err interface implementation
 
 # 1.1.1
 * Fix ack message reading not being retried
