@@ -169,6 +169,10 @@ type Config struct {
 
 	// Configuration for snapshot loading
 	Snapshot SnapshotConfig
+
+	// whether to create all VirtIO devices using a PCI VirtIO transport
+	// yields higher throughput and lower latency for VirtIO devices
+	Pci bool
 }
 
 func (cfg *Config) hasSnapshot() bool {
@@ -359,11 +363,14 @@ func seccompArgs(cfg *Config) []string {
 }
 
 func configureBuilder(builder VMCommandBuilder, cfg Config) VMCommandBuilder {
-	return builder.
+	bldr := builder.
 		WithSocketPath(cfg.SocketPath).
 		AddArgs("--id", cfg.VMID).
-		AddArgs("--enable-pci").
 		AddArgs(seccompArgs(&cfg)...)
+	if cfg.Pci {
+		bldr.AddArgs("--enable-pci")
+	}
+	return bldr
 }
 
 // NewMachine initializes a new Machine instance and performs validation of the
