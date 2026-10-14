@@ -36,6 +36,7 @@ const (
 	SetupKernelArgsHandlerName         = "fcinit.SetupKernelArgs"
 	CreateBalloonHandlerName           = "fcinit.CreateBalloon"
 	LoadSnapshotHandlerName            = "fcinit.LoadSnapshot"
+	SetupMemoryHotplugging             = "fcinit.SetupMemoryHotplugging"
 
 	ValidateCfgHandlerName             = "validate.Cfg"
 	ValidateJailerCfgHandlerName       = "validate.JailerCfg"
@@ -307,6 +308,17 @@ var LoadSnapshotHandler = Handler{
 	Fn: func(ctx context.Context, m *Machine) error {
 		return m.loadSnapshot(ctx, &m.Cfg.Snapshot)
 	},
+}
+
+// NewMemoryHotplugHandler is a named handler that configures memory hotplugging
+// with the default block size (2 MiB) and slot size (128 MiB)
+func NewSetupMemoryHotpluggingHandler(amountMib int64) Handler {
+	return Handler{
+		Name: SetupMemoryHotplugging,
+		Fn: func(ctx context.Context, m *Machine) error {
+			return m.ConfigureMemoryHotplugging(ctx, amountMib)
+		},
+	}
 }
 
 var defaultFcInitHandlerList = HandlerList{}.Append(

@@ -169,6 +169,10 @@ type Config struct {
 
 	// Configuration for snapshot loading
 	Snapshot SnapshotConfig
+
+	// whether to create all VirtIO devices using a PCI VirtIO transport
+	// yields higher throughput and lower latency for VirtIO devices
+	Pci bool
 }
 
 func (cfg *Config) hasSnapshot() bool {
@@ -359,10 +363,14 @@ func seccompArgs(cfg *Config) []string {
 }
 
 func configureBuilder(builder VMCommandBuilder, cfg Config) VMCommandBuilder {
-	return builder.
+	bldr := builder.
 		WithSocketPath(cfg.SocketPath).
 		AddArgs("--id", cfg.VMID).
 		AddArgs(seccompArgs(&cfg)...)
+	if cfg.Pci {
+		bldr.AddArgs("--enable-pci")
+	}
+	return bldr
 }
 
 // NewMachine initializes a new Machine instance and performs validation of the
@@ -1347,4 +1355,53 @@ func (m *Machine) UpdateBalloonStats(ctx context.Context, statsPollingIntervals 
 	m.logger.Debug("UpdateBalloonStats successful")
 
 	return nil
+}
+
+// ConfigureMemoryHotplugging sets up memory hotplugging.
+func (m *Machine) ConfigureMemoryHotplugging(ctx context.Context, totalSizeMib int64, opts ...ConfigureMemoryHotplugOpt) error {
+	memoryHotplugConfig := models.MemoryHotplugConfig{
+		TotalSizeMib: totalSizeMib,
+	}
+
+	_, err := m.client.ConfigureMemoryHotplugging(ctx, &memoryHotplugConfig, opts...)
+	if err != nil {
+		m.logger.Errorf("Configuring memory hotplugging failed : %s", err)
+		return err
+	}
+
+	m.logger.Debug("Configuring memory hotplugging successful")
+
+	return nil
+}
+
+// UpdateMemoryHotplugging updates the size of the hotplugged memory.
+func (m *Machine) UpdateMemoryHotplugging(ctx context.Context, requestedSizeMib int64, opts ...UpdateMemoryHotpluggingOpt) error {
+	memoryHotplugConfig := models.MemoryHotplugSizeUpdate{
+		RequestedSizeMib: &requestedSizeMib,
+	}
+
+	_, err := m.client.UpdateMemoryHotplugging(ctx, &memoryHotplugConfig, opts...)
+	if err != nil {
+		m.logger.Errorf("Updating memory hotplugging failed : %s", err)
+		return err
+	}
+
+	m.logger.Debug("Updating memory hotplugging successful")
+
+	return nil
+}
+
+// GetMemoryHotplugging gets the status of the hotplugged memory.
+func (m *Machine) GetMemoryHotplugging(ctx context.Context, opts ...GetMemoryHotpluggingStatusOpt) (*models.MemoryHotplugStatus, error) {
+	resp, err := m.client.GetMemoryHotpluggingStatus(ctx, opts...)
+	if err != nil {
+		m.logger.Errorf("Getting memory hotplugging status : %s", err)
+		return nil, err
+	}
+
+	hotpluggingStatus := resp.Payload
+
+	m.logger.Debug("Updating memory hotplugging successful")
+
+	return hotpluggingStatus, nil
 }
